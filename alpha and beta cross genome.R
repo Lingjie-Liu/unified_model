@@ -46,9 +46,9 @@ ggdensity(tss_df, x = "value", xlim = c(0, 300),
 ratio_df = data.frame(unit_SB = data$cd14_gb/6000, unit_SP = data$cd14_tss/250)
 p = ggplot(data = ratio_df, aes(x=unit_SB, y=unit_SP, color = unit_SP))+
   geom_point(size=3, alpha=0.2, color ="skyblue3")+ylim(0, 4)+xlim(0, 0.5)+
-  theme(axis.text=element_text(size=20,face = "bold"), #åæ ‡è½´åˆ»åº¦å€¼çš„å­—ä½“å¤§å°
-        axis.title.x=element_text(size=20),axis.title.y=element_text(size=20))+# axis.title.xå’Œaxis.title.yæ”¹å˜xè½´å’Œyè½´æ ‡é¢˜å­—ä½“å¤§å°
-  geom_abline(slope = 1, intercept = 0, color = "darkblue", lty = 2) #å¢åŠ  y = x å¯¹è§’çº¿
+  theme(axis.text=element_text(size=20,face = "bold"), #×ø±êÖá¿Ì¶ÈÖµµÄ×ÖÌå´óĞ¡
+        axis.title.x=element_text(size=20),axis.title.y=element_text(size=20))+# axis.title.xºÍaxis.title.y¸Ä±äxÖáºÍyÖá±êÌâ×ÖÌå´óĞ¡
+  geom_abline(slope = 1, intercept = 0, color = "darkblue", lty = 2) #Ôö¼Ó y = x ¶Ô½ÇÏß
 p   
 
 scale_color_gradient(low="lightblue", high="darkblue")+
@@ -93,7 +93,7 @@ ggplot(number_df, aes(variable, value, fill = variable))+
   geom_bar(stat="identity",position="dodge")+
   ggtitle("Gene number and cases number")+
   scale_fill_brewer(palette="Pastel1")+
-  theme(axis.text=element_text(size=20,face = "bold"), #åæ ‡è½´åˆ»åº¦å€¼çš„å­—ä½“å¤§å°
+  theme(axis.text=element_text(size=20,face = "bold"), #×ø±êÖá¿Ì¶ÈÖµµÄ×ÖÌå´óĞ¡
         axis.title.x=element_text(size=20),axis.title.y=element_text(size=20))
 
 
@@ -105,8 +105,8 @@ p = ggplot(all_beta, aes(x=cd14_alpha, y=cd14_beta) ) +
   ylim(0,1)+
   xlim(0,2)+
   geom_bin2d(bins = 200) +
-  scale_fill_continuous(type = "viridis") + theme_bw() +#é€šè¿‡binsæ§åˆ¶åˆ’åˆ†æ–¹å—çš„å¤§å°ï¼Œå³ç²’åº¦å¤§å°ï¼ŒåŒæ—¶å¯ä»¥è®¾ç½®é¢œè‰²æ¡çš„è‰²å½©æ¨¡å¼
-  geom_smooth(method = lm, color = "black", fill = "lightgray")+#çº¿æ€§æ‹Ÿåˆ
+  scale_fill_continuous(type = "viridis") + theme_bw() +#Í¨¹ıbins¿ØÖÆ»®·Ö·½¿éµÄ´óĞ¡£¬¼´Á£¶È´óĞ¡£¬Í¬Ê±¿ÉÒÔÉèÖÃÑÕÉ«ÌõµÄÉ«²ÊÄ£Ê½
+  geom_smooth(method = lm, color = "black", fill = "lightgray")+#ÏßĞÔÄâºÏ
   stat_cor(method = "pearson", label.x = 1, label.y = 1)
 p
 # alpha vs. beta cross all genes cd4
@@ -114,8 +114,8 @@ p = ggplot(all_beta, aes(x=cd4_alpha, y=cd4_beta) ) +
   ylim(0,1)+
   xlim(0,2)+
   geom_bin2d(bins = 200) +
-  scale_fill_continuous(type = "viridis") + theme_bw() +#é€šè¿‡binsæ§åˆ¶åˆ’åˆ†æ–¹å—çš„å¤§å°ï¼Œå³ç²’åº¦å¤§å°ï¼ŒåŒæ—¶å¯ä»¥è®¾ç½®é¢œè‰²æ¡çš„è‰²å½©æ¨¡å¼
-  geom_smooth(method = lm, color = "black", fill = "lightgray")+#çº¿æ€§æ‹Ÿåˆ
+  scale_fill_continuous(type = "viridis") + theme_bw() +#Í¨¹ıbins¿ØÖÆ»®·Ö·½¿éµÄ´óĞ¡£¬¼´Á£¶È´óĞ¡£¬Í¬Ê±¿ÉÒÔÉèÖÃÑÕÉ«ÌõµÄÉ«²ÊÄ£Ê½
+  geom_smooth(method = lm, color = "black", fill = "lightgray")+#ÏßĞÔÄâºÏ
   stat_cor(method = "pearson", label.x = 1, label.y = 1)
 p
 #### alpha vs. beta cross pausing_initiation shared genes 
@@ -125,8 +125,8 @@ p = ggplot(shared_cases, aes(x=cd14_alpha, y=cd14_beta) ) +
   ylim(0,1)+
   xlim(0,2)+
   geom_bin2d(bins = 200) +
-  scale_fill_continuous(type = "viridis") + theme_bw() +#é€šè¿‡binsæ§åˆ¶åˆ’åˆ†æ–¹å—çš„å¤§å°ï¼Œå³ç²’åº¦å¤§å°ï¼ŒåŒæ—¶å¯ä»¥è®¾ç½®é¢œè‰²æ¡çš„è‰²å½©æ¨¡å¼
-  geom_smooth(method = lm, color = "black", fill = "lightgray")+#çº¿æ€§æ‹Ÿåˆ
+  scale_fill_continuous(type = "viridis") + theme_bw() +#Í¨¹ıbins¿ØÖÆ»®·Ö·½¿éµÄ´óĞ¡£¬¼´Á£¶È´óĞ¡£¬Í¬Ê±¿ÉÒÔÉèÖÃÑÕÉ«ÌõµÄÉ«²ÊÄ£Ê½
+  geom_smooth(method = lm, color = "black", fill = "lightgray")+#ÏßĞÔÄâºÏ
   stat_cor(method = "pearson", label.x = 1, label.y = 1)
 p
 # cd4
@@ -134,8 +134,8 @@ p = ggplot(shared_cases, aes(x=cd4_alpha, y=cd4_beta) ) +
   ylim(0,1)+
   xlim(0,2)+
   geom_bin2d(bins = 200) +
-  scale_fill_continuous(type = "viridis") + theme_bw() +#é€šè¿‡binsæ§åˆ¶åˆ’åˆ†æ–¹å—çš„å¤§å°ï¼Œå³ç²’åº¦å¤§å°ï¼ŒåŒæ—¶å¯ä»¥è®¾ç½®é¢œè‰²æ¡çš„è‰²å½©æ¨¡å¼
-  geom_smooth(method = lm, color = "black", fill = "lightgray")+#çº¿æ€§æ‹Ÿåˆ
+  scale_fill_continuous(type = "viridis") + theme_bw() +#Í¨¹ıbins¿ØÖÆ»®·Ö·½¿éµÄ´óĞ¡£¬¼´Á£¶È´óĞ¡£¬Í¬Ê±¿ÉÒÔÉèÖÃÑÕÉ«ÌõµÄÉ«²ÊÄ£Ê½
+  geom_smooth(method = lm, color = "black", fill = "lightgray")+#ÏßĞÔÄâºÏ
   stat_cor(method = "pearson", label.x = 1, label.y = 1)
 p
 
@@ -146,8 +146,8 @@ pausing_beta_df = data.frame(cd14 = pausing_only$cd14_beta, cd4 = pausing_only$c
 p = ggplot(data = pausing_beta_df, aes(x = cd4, y=cd14, color = cd4, size = significance))+
   geom_point(#size=3, 
     alpha=0.2, color ="skyblue3")+ylim(0, 1)+xlim(0, 1)+
-  scale_size_continuous(range = c(0.5, 15))+#æ§åˆ¶æœ€å¤§æ°”æ³¡å’Œæœ€å°æ°”æ³¡ï¼Œè°ƒèŠ‚æ°”æ³¡ç›¸å¯¹å¤§å°
-  theme(axis.text=element_text(size=20,face = "bold"), #åæ ‡è½´åˆ»åº¦å€¼çš„å­—ä½“å¤§å°
-        axis.title.x=element_text(size=20),axis.title.y=element_text(size=20))+# axis.title.xå’Œaxis.title.yæ”¹å˜xè½´å’Œyè½´æ ‡é¢˜å­—ä½“å¤§å°
-  geom_abline(slope = 1, intercept = 0, color = "darkblue", lty = 2) #å¢åŠ  y = x å¯¹è§’çº¿
+  scale_size_continuous(range = c(0.5, 15))+#¿ØÖÆ×î´óÆøÅİºÍ×îĞ¡ÆøÅİ£¬µ÷½ÚÆøÅİÏà¶Ô´óĞ¡
+  theme(axis.text=element_text(size=20,face = "bold"), #×ø±êÖá¿Ì¶ÈÖµµÄ×ÖÌå´óĞ¡
+        axis.title.x=element_text(size=20),axis.title.y=element_text(size=20))+# axis.title.xºÍaxis.title.y¸Ä±äxÖáºÍyÖá±êÌâ×ÖÌå´óĞ¡
+  geom_abline(slope = 1, intercept = 0, color = "darkblue", lty = 2) #Ôö¼Ó y = x ¶Ô½ÇÏß
 p   
