@@ -74,23 +74,23 @@ saveRDS(testing_0.01_OR, paste0(output_dir, 'human_LRTbeta_0.01_OR.RDS'))
 
 
 ###### go lrt : alpha ############
-lrt_alpha <- function(s_count){
-  SB1 = s_count[2] #SB1
-  SB2 = s_count[4] #SB2
-  B = s_count[2] + s_count[4] #SB1+SB2
+lrt_alpha <- function(s_count, lambda1, lambda2){
+  SB1 = s_count[2] 
+  SB2 = s_count[4]
+  B1 = lambda1*(s_count[2] + s_count[4])/(6000*lambda1 + 6000*lambda2) 
+  B2 = lambda2*(s_count[2] + s_count[4])/(6000*lambda1 + 6000*lambda2)
   
-  t1 = SB1*log(SB1) 
-  t2 = SB2*log(SB2) 
-  t3 = B*log(B/2) 
+  t1 = SB1*(log(SB1/6000) - log(B1)) 
+  t2 = SB2*(log(SB2/6000) - log(B2)) 
   
-  t = t1 + t2 - t3 
+  t = t1 + t2  
   
   p_value = pchisq(2*t, 1, ncp = 0, lower.tail = F, log.p = FALSE)
   
   return(c(2*t, p_value))
 }
 
-result = apply(test_genes[,c(2:3, 5:6)], 1, lrt_alpha)
+result = apply(test_genes[,c(2:3, 5:6)], 1, lrt_alpha, cd14_lambda, cd4_lambda)
 X = result[c(T, F)]
 p_values = result[c(F, T)]
 q_values =  p.adjust(p_values, method = "BH")
@@ -119,5 +119,5 @@ write.table(testing_results, paste0(output_dir, 'human_LRTalpha_results.tsv'),
             row.names = F,sep = '\t', quote = F)
 
 ## choose q cutoff 0.01 ##
-testing_0.01 = testing_results[which(testing_results$q_values < 0.01), ] # number 3103
+testing_0.01 = testing_results[which(testing_results$q_values < 0.01), ] # number 3534
 saveRDS(testing_0.01, paste0(output_dir, 'human_LRTalpha_0.01.RDS'))
