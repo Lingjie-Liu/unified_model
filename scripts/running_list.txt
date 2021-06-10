@@ -1,0 +1,13 @@
+# identify common expressed genes
+find_common_expressed_genes.R 
+
+# determine dominant promoter (TSS cluster) for the expressed gene set
+find_dominant_promoters.R
+
+# determine the range of dominant promoter (TSS cluster)
+find_dominantPromoter_range.R
+
+# use 5' end pro-seq data to help us determine the start of pausing peak
+find_pausing_peak_with_5'end.R
+
+# 
