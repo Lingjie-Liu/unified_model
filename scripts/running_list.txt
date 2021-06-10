@@ -9,5 +9,9 @@ find_dominantPromoter_range.R
 
 # use 5' end pro-seq data to help us determine the start of pausing peak
 find_pausing_peak_with_5'end.R
-
 # 
+
+# use t series analysis to help us determine the region of gene body
+creat_rc_windows_for_tseries.R
+# visualize the selected gene body regions
+gviz for gb selection
