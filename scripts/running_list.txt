@@ -9,9 +9,24 @@ find_dominantPromoter_range.R
 
 # use 5' end pro-seq data to help us determine the start of pausing peak
 find_pausing_peak_with_5'end.R
-# 
+# visualize the selected pausing regions
+gviz for TSS selection.R
 
 # use t series analysis to help us determine the region of gene body
 creat_rc_windows_for_tseries.R
 # visualize the selected gene body regions
-gviz for gb selection
+gviz for gb selection.R
+
+# reads counting of pausing peaks, gene bodies and termination.
+readcounts_for_3regions.R
+
+# do LRT for alpha and beta
+go_LRT.R
+# visualize potential differential pausing/initiation cases
+givz for lrt beta.R
+
+# analysis alpha and beta values; plotting
+alpha and beta cross genome.R
+
+# gibbs sampling for particular cases
+gibbs_sampling.R
