@@ -13,7 +13,7 @@ find_pausing_peak_with_5'end.R
 5. # use t series analysis to help us determine the region of gene body
 creat_rc_windows_for_tseries.R
 # visualize the selected gene body regions
-gviz for gb selection.R
+gviz_for_gb_selection.R
 
 6. # reads counting of pausing peaks, gene bodies and termination.
 readcounts_for_3regions.R
