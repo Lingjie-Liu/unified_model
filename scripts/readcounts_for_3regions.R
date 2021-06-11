@@ -67,7 +67,7 @@ find_tss_ps <- function(five_end_list, bw_file, gene_set, cell_strand, k){
       sp_end = sp_start + (k - 1)
 
     }
-    if(strand == '-'){
+    else if(strand == '-'){
       five_end = five_end_list[[gene]][3]
       sp_start = five_end - (k - 1)
       sp_end = five_end
@@ -79,10 +79,6 @@ find_tss_ps <- function(five_end_list, bw_file, gene_set, cell_strand, k){
   }
   
   d = data.frame(genes, asp_start, asp_end)
-  # saveRDS(d, paste0(output_dir, cell_strand, '_TSS_position.RData'))
-  # write.table(d, paste0(output_dir, cell_strand, '_TSS_position.tsv'), quote = F, sep = '\t',
-  #             col.names = c('gene_id', 'sp_start', 'sp_end'),
-  #             row.names = F)
   return(d)
 }
 
@@ -164,7 +160,7 @@ go_rc <- function(tss_union, bw_file, cell_strand, extension, l, m){
         }
     }
     
-    if(strand == '-'){
+    else if(strand == '-'){
       sp_start = tss_union[tss_union$genes == gene, ]$tss_start
       sp_end = tss_union[tss_union$genes == gene, ]$tss_end
       
