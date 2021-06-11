@@ -1,32 +1,32 @@
-# identify common expressed genes
+1. # identify common expressed genes
 find_common_expressed_genes.R 
 
-# determine dominant promoter (TSS cluster) for the expressed gene set
+2. # determine dominant promoter (TSS cluster) for the expressed gene set
 find_dominant_promoters.R
 
-# determine the range of dominant promoter (TSS cluster)
+3. # determine the range of dominant promoter (TSS cluster)
 find_dominantPromoter_range.R
 
-# use 5' end pro-seq data to help us determine the start of pausing peak
+4. # use 5' end pro-seq data to help us determine the start of pausing peak
 find_pausing_peak_with_5'end.R
-# visualize the selected pausing regions
-gviz_for_TSS_selection.R
 
-# use t series analysis to help us determine the region of gene body
+5. # use t series analysis to help us determine the region of gene body
 creat_rc_windows_for_tseries.R
 # visualize the selected gene body regions
 gviz for gb selection.R
 
-# reads counting of pausing peaks, gene bodies and termination.
+6. # reads counting of pausing peaks, gene bodies and termination.
 readcounts_for_3regions.R
+# visualize the selected pausing regions
+gviz_for_TSS_selection.R
 
-# do LRT for alpha and beta
+7. # do LRT for alpha and beta
 go_LRT.R
 # visualize potential differential pausing/initiation cases
 givz for lrt beta.R
 
-# analysis alpha and beta values; plotting
+8. # analysis alpha and beta values; plotting
 alpha and beta cross genome.R
 
-# gibbs sampling for particular cases
+9. # gibbs sampling for particular cases
 gibbs_sampling.R
