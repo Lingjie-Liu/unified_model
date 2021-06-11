@@ -47,7 +47,7 @@ find_5end_match <- function(tss_range_list, sample_bw, extend_region){
                                  tss_range_list[[gene]][2], five_end) }
     }
     
-    if(strand == '-'){
+    else if(strand == '-'){
       sp_gr <- GRanges(seqnames = as.character(unique(seqnames(sub_gr))), 
                        strand = strand,
                        ranges = IRanges(start = tss_range_list[[gene]][1]-extend_region,
@@ -83,5 +83,7 @@ saveRDS(cd14_minus_match, paste0(output_dir, "minus_cd14_5end.RData"))
 
 saveRDS(cd4_plus_match, paste0(output_dir, "plus_cd4_5end.RData"))
 saveRDS(cd4_minus_match, paste0(output_dir, "minus_cd4_5end.RData"))
+
+
 
 
