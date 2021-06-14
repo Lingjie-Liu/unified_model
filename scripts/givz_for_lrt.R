@@ -207,8 +207,3 @@ for (i in sample_cases){
   view_cases(i, extend_region, l_length)
 }
 
-
-### view individual case ####
-gene_name = "ENSG00000013441"
-view_cases(gene_name, extend_region, l_length)
-
