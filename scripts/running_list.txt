@@ -23,7 +23,7 @@ gviz_for_TSS_selection.R
 7. # do LRT for alpha and beta
 go_LRT.R
 # visualize potential differential pausing/initiation cases
-givz for lrt beta.R
+givz_for_lrt.R
 
 8. # analysis alpha and beta values; plotting
 alpha and beta cross genome.R
