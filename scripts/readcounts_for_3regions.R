@@ -1,6 +1,7 @@
 #### This script is to find read counts in sp, sb, st ########
 #### now is only do plus strand ########
 library(DENR)
+library(GenomicRanges)
 library(data.table)
 
 root_dir = "C:/Users/ling/Dropbox/scripts/"
@@ -119,7 +120,7 @@ write.table(tss_minus_union, paste0(output_dir, 'cd14_cd4_minus_TSS_union.tsv'),
             quote = F, sep = '\t', col.names = T, row.names = F)
 
 
-########### do reads counting: determint the counting regions and also do counting
+########### do reads counting: determine the counting regions and also do counting
 go_rc <- function(tss_union, bw_file, cell_strand, extension, l, m){
   genes = c()
   asp_start = c()
@@ -195,7 +196,7 @@ go_rc <- function(tss_union, bw_file, cell_strand, extension, l, m){
                             'sb_start', 'sb_end', 'st_start', 'st_end'),
               row.names = F)
 
-  ### call function readscounting to count reads in sp, sb and st
+  ### call function reads counting to count reads in sp, sb and st
   sp_count = readscounting(d, d$asp_start, d$asp_end, bw_file)
   sb_count = readscounting(d, d$asb_start, d$asb_end, bw_file)
   st_count = readscounting(d, d$ast_start, d$ast_end, bw_file)
@@ -225,16 +226,28 @@ cd4_minus_rc = go_rc(tss_minus_union, cd4_bw_minus, 'cd4_minus', extension, l_le
 cd14_cd4_tss_union = rbind(tss_plus_union, tss_minus_union)
 saveRDS(cd14_cd4_tss_union, paste0(output_dir, 'cd14_cd4_TSS_union.RData'))
 
-##### merge rc file 
-cd14_rc = rbind(cd14_plus_rc, cd14_minus_rc)
-saveRDS(cd14_rc, paste0(output_dir, 'cd14_rc.RData'))
-d = data.frame(cd14_rc$genes, cd14_rc$sp_count, cd14_rc$sb_count, cd14_rc$st_count)
-write.table(d, paste0(output_dir, 'cd14_rc.tsv'), quote = F, sep = '\t',
-            col.names = c('gene_id', 'sp_count', 'sb_count', 'st_count'), row.names = F)
+#### merge reads-counting files 
+samples = c('cd14', 'cd4')
+merge_rc <- function(sample){
+  plus_rc = readRDS(paste0(output_dir, sample, '_plus_rc.Rdata'))
+  minus_rc = readRDS(paste0(output_dir, sample, '_minus_rc.Rdata'))
+  all_rc = rbind(plus_rc, minus_rc)
+  saveRDS(all_rc, paste0(output_dir, sample,'_rc.Rdata'))
+}
+for(sample in samples){
+  merge_rc(sample)
+}
 
-##### cd4
-cd4_rc = rbind(cd4_plus_rc, cd4_minus_rc)
-saveRDS(cd4_rc, paste0(output_dir, 'cd4_rc.RData'))
-d = data.frame(cd4_rc$genes, cd4_rc$sp_count, cd4_rc$sb_count, cd4_rc$st_count)
-write.table(d, paste0(output_dir, 'cd4_rc.tsv'), quote = F, sep = '\t',
-            col.names = c('gene_id', 'sp_count', 'sb_count', 'st_count'), row.names = F)
+#### merge reads-counting position files 
+samples = c('cd14', 'cd4')
+merge_rc_position <- function(sample){
+  plus_position = readRDS(paste0(output_dir, sample, '_plus_rc_position.Rdata'))
+  minus_position = readRDS(paste0(output_dir, sample, '_minus_rc_position.Rdata'))
+  all_position = rbind(plus_position, minus_position)
+  colnames(all_position) = c('gene_id', 'chrom', 'strand','sp_start', 'sp_end',
+                             'sb_start', 'sb_end', 'st_start', 'st_end')
+  saveRDS(all_position, paste0(output_dir, sample,'_rc_position.Rdata'))
+}
+for(sample in samples){
+  merge_rc_position(sample)
+}
