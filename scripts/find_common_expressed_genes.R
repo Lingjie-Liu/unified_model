@@ -7,23 +7,25 @@ library(stringr)
 library(GenomicRanges)
 library(data.table)
 
-root_dir = "C:/Users/ling/Dropbox/scripts"
-output_dir = file.path(root_dir, "unified_model/data/")
+# directories
+# root_dir = "C:/Users/ling/Dropbox/scripts"
+root_dir <- "./github"
+output_dir <- file.path(root_dir, "unified_model/data")
+# parameters
+min_gene_length <- 10000
 
-hs_grng = readRDS(file.path(output_dir, 'hsapiens_transcript_grng.RDS'))
+hs_grng <- readRDS(file.path(output_dir, 'hsapiens_transcript_grng.RDS'))
 
 ##filter out genes with low expression #####
 sel_chr <- sort(str_subset(unique(seqnames(hs_grng)), "^[0-9]+.?$|^X"))
 
 # filter out non-protein-coding genes, and genes shorter than 10kb 
-min_gene_length = 10000
 grng_filtered <-
   hs_grng[(seqnames(hs_grng) %in% sel_chr) &
             (hs_grng$gene_biotype == "protein_coding") & width(hs_grng) >= min_gene_length]
 
 # get protein coding genes from filtered grng
-pc_gene = unique(grng_filtered$ensembl_gene_id)
-
+pc_gene <- unique(grng_filtered$ensembl_gene_id)
 
 ###### for cd14 : get the sum_abundance of dominant promoter model #############
 ###### filter out those with low expression ####################################
@@ -95,4 +97,4 @@ cd14_expressed_genes = pick_expressed_genes(cd14_ta, threshold)
 cd4_expressed_genes = pick_expressed_genes(cd4_ta, threshold)
 common_expressed_genes = intersect(cd14_expressed_genes, cd4_expressed_genes) #6916
 
-saveRDS(common_expressed_genes, paste0(output_dir, "common_expressed_genes.RData"))
+saveRDS(common_expressed_genes, file.path(output_dir, "common_expressed_genes.RData"))

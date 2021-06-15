@@ -3,23 +3,26 @@ library(DENR)
 library(rtracklayer)
 library(GenomicRanges)
 
-root_dir = "C:/Users/ling/Dropbox/scripts/"
-output_dir = paste0(root_dir, "unified_model/data/")
+# root_dir = "C:/Users/ling/Dropbox/scripts/"
+root_dir <- "./github" 
+output_dir = file.path(root_dir, "unified_model/data")
 
 #load range of dominant promoter
-plus_tss_range = readRDS(paste0(output_dir, 'plus_promoter_range.RData'))
-minus_tss_range = readRDS(paste0(output_dir, 'minus_promoter_range.RData'))
+plus_tss_range = readRDS(file.path(output_dir, 'plus_promoter_range.RData'))
+minus_tss_range = readRDS(file.path(output_dir, 'minus_promoter_range.RData'))
 
 ### load the cd14 5' end data 
-cd14_plus = import(paste0(output_dir, 'p5/', 'PROseq-HUMAN-CD14-3-1_dedup_QC_end_plus.rpm.bw'))
-cd14_minus = import(paste0(output_dir, 'p5/', 'PROseq-HUMAN-CD14-3-1_dedup_QC_end_minus.rpm.bw'))
+cd14_plus = import(file.path(output_dir, 'p5/', 'PROseq-HUMAN-CD14-3-1_dedup_QC_end_plus.rpm.bw'))
+cd14_minus = import(file.path(output_dir, 'p5/', 'PROseq-HUMAN-CD14-3-1_dedup_QC_end_minus.rpm.bw'))
 
-cd4_plus = import(paste0(output_dir, 'p5/', 'PROseq-HUMAN-cd4-3-1_dedup_QC_end_plus.rpm.bw'))
-cd4_minus = import(paste0(output_dir, 'p5/', 'PROseq-HUMAN-cd4-3-1_dedup_QC_end_minus.rpm.bw'))
+cd4_plus = import(file.path(output_dir, 'p5/', 'PROseq-HUMAN-cd4-3-1_dedup_QC_end_plus.rpm.bw'))
+cd4_minus = import(file.path(output_dir, 'p5/', 'PROseq-HUMAN-cd4-3-1_dedup_QC_end_minus.rpm.bw'))
 
 ### load annotation
-hs_grng = readRDS(paste0(output_dir, 'hsapiens_transcript_grng.RDS'))
+hs_grng = readRDS(file.path(output_dir, 'hsapiens_transcript_grng.RDS'))
 
+# tss_range_list <- plus_tss_range
+# sample_bw <- cd14_plus
 
 #### find the highest signal from 5' end data ####
 find_5end_match <- function(tss_range_list, sample_bw, extend_region){
@@ -78,11 +81,11 @@ cd14_minus_match =  find_5end_match(minus_tss_range, cd14_minus, extend_region)
 cd4_plus_match = find_5end_match(plus_tss_range, cd4_plus, extend_region)
 cd4_minus_match =  find_5end_match(minus_tss_range, cd4_minus, extend_region)
 
-saveRDS(cd14_plus_match, paste0(output_dir, "plus_cd14_5end.RData"))
-saveRDS(cd14_minus_match, paste0(output_dir, "minus_cd14_5end.RData"))
+saveRDS(cd14_plus_match, file.path(output_dir, "plus_cd14_5end.RData"))
+saveRDS(cd14_minus_match, file.path(output_dir, "minus_cd14_5end.RData"))
 
-saveRDS(cd4_plus_match, paste0(output_dir, "plus_cd4_5end.RData"))
-saveRDS(cd4_minus_match, paste0(output_dir, "minus_cd4_5end.RData"))
+saveRDS(cd4_plus_match, file.path(output_dir, "plus_cd4_5end.RData"))
+saveRDS(cd4_minus_match, file.path(output_dir, "minus_cd4_5end.RData"))
 
 
 

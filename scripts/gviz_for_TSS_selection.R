@@ -4,11 +4,14 @@ library(GenomicRanges)
 library(rtracklayer)
 library(Repitools)
 
+options(ucscChromosomeNames=FALSE)
+
 # bw file dir and pdf output dir 
-root_dir = 'C:/Users/ling/Dropbox/scripts/'
+# root_dir = 'C:/Users/ling/Dropbox/scripts/'
+root_dir <- "./github/" 
+
 bw_dir <- paste0(root_dir, 'unified_model/data/p3/')
 output_dir <- paste0(root_dir, 'unified_model/tss_plot/')
-
 
 # plot function for the TSS selection 
 plot_tss <- function(gene_name,
@@ -23,8 +26,6 @@ plot_tss <- function(gene_name,
   
   plot_start <- gene_start - expand_region
   plot_end <- gene_end + expand_region
-  
-  options(ucscChromosomeNames=FALSE)
   
   ############ plot whole axis
   axisTrack <- GenomeAxisTrack(IRanges(start = plot_start, end = plot_end),

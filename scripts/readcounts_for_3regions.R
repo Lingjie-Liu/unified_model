@@ -4,7 +4,9 @@ library(DENR)
 library(GenomicRanges)
 library(data.table)
 
-root_dir = "C:/Users/ling/Dropbox/scripts/"
+# root_dir = "C:/Users/ling/Dropbox/scripts/"
+root_dir <- "./github/" 
+
 output_dir = paste0(root_dir, "unified_model/data/")
 
 #bigwig file

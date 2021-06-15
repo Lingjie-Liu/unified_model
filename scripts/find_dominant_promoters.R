@@ -2,11 +2,13 @@
 
 library(stringr)
 
-root_dir = "C:/Users/ling/Dropbox/scripts"
-output_dir = file.path(root_dir, "unified_model/data/")
+# root_dir = "C:/Users/ling/Dropbox/scripts"
+root_dir <- "./github"
+
+output_dir <- file.path(root_dir, "unified_model/data")
 
 # get common expressed genes, which are already protein coding genes from last script
-common_expressed_gene = readRDS(paste0(output_dir, "common_expressed_genes.RData"))
+common_expressed_gene <- readRDS(file.path(output_dir, "common_expressed_genes.RData"))
 
 ###### for cd14 ##############
 read_ab_file <- function(file_name){
@@ -15,8 +17,8 @@ read_ab_file <- function(file_name){
                   col.names = c('tx_id', 'tss', 'tts', 'ab', 'model', 'gene_id'))
   return(file)
 }
-cd14_ta = read_ab_file('PROseq-HUMAN-CD14-3-1_grouping.txt')
-cd4_ta = read_ab_file('PROseq-HUMAN-CD4-3-1_grouping.txt')
+cd14_ta <- read_ab_file('PROseq-HUMAN-CD14-3-1_grouping.txt')
+cd4_ta <- read_ab_file('PROseq-HUMAN-CD4-3-1_grouping.txt')
 
 #filter with common expressed protein coding genes
 cd14_ta <- cd14_ta[cd14_ta$gene_id %in% common_expressed_gene, ]
@@ -42,9 +44,8 @@ find_dominantPromoter <- function(tx_ab){
 }
 
 # call find_dominantPromoter() for all samples
-cd14_dominant_promoter = find_dominantPromoter(cd14_ta)
-cd4_dominant_promoter = find_dominantPromoter(cd4_ta)
+cd14_dominant_promoter <- find_dominantPromoter(cd14_ta)
+cd4_dominant_promoter <- find_dominantPromoter(cd4_ta)
 
-
-saveRDS(cd14_dominant_promoter, paste0(output_dir, 'cd14_dominant_promoter.Rdata'))
-saveRDS(cd4_dominant_promoter, paste0(output_dir, 'cd4_dominant_promoter.Rdata'))
+saveRDS(cd14_dominant_promoter, file.path(output_dir, 'cd14_dominant_promoter.Rdata'))
+saveRDS(cd4_dominant_promoter, file.path(output_dir, 'cd4_dominant_promoter.Rdata'))

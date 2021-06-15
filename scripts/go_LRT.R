@@ -3,7 +3,9 @@
 library(dplyr)
 library(data.table)
 
-root_dir = "C:/Users/ling/Dropbox/scripts/"
+# root_dir = "C:/Users/ling/Dropbox/scripts/"
+root_dir <- "./github/" 
+
 output_dir = paste0(root_dir, "unified_model/data/")
 
 # load reads count for LRT #
@@ -53,7 +55,8 @@ lrt_beta <- function(s_count){
   return(c(2*t, p_value))
 }
 
-result = apply(test_genes[,c(2:3, 5:6)], 1, lrt_beta)
+result = apply(test_genes[, c(2:3, 5:6)], 1, lrt_beta)
+
 X = result[c(T, F)] # statistic X， which is 2T
 p_values = result[c(F, T)]
 q_values =  p.adjust(p_values, method = "BH")

@@ -18,6 +18,7 @@ dependencies:
 - r-base>=4.0
 - r-data.table
 - r-devtools
+- r-ggthemes
 - r-reshape2
 - r-tidyverse
 - r-tseries

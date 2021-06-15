@@ -3,7 +3,9 @@
 library(stringr)
 library(GenomicRanges)
 
-root_dir = "C:/Users/ling/Dropbox/scripts/"
+# root_dir = "C:/Users/ling/Dropbox/scripts/"
+root_dir <- "./github/" 
+
 output_dir = paste0(root_dir, "unified_model/data/")
 
 #bigwig file
@@ -71,8 +73,11 @@ library(ggplot2)
 plot_dir = paste0(root_dir, 'unified_model/acf_plot/')
 gr = readRDS(paste0(output_dir, 'cd14_plus_windows_rc.RData'))
 
+dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
+
 sample_genes = plus_gene_set[c(1:5)]
-sample_genes = "ENSG00000103510"
+# sample_genes = "ENSG00000103510"
+
 for(gene in sample_genes){
   data <- gr[gr$gene_id == gene]$count
   data <- ts(data)
