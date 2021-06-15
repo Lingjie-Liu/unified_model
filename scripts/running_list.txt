@@ -1,5 +1,5 @@
 1. # identify common expressed genes
-find_common_expressed_genes.R 
+find_common_expressed_genes.R
 
 2. # determine dominant promoter (TSS cluster) for the expressed gene set
 find_dominant_promoters.R
@@ -26,7 +26,7 @@ go_LRT.R
 givz_for_lrt.R
 
 8. # analysis alpha and beta values; plotting
-alpha and beta cross genome.R
+alpha_and_beta_cross_genome.R
 
 9. # gibbs sampling for particular cases
 gibbs_sampling.R

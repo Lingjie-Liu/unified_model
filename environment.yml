@@ -1,0 +1,25 @@
+# The name of the environment
+name: unimod
+# The relevent channels
+channels:
+- conda-forge
+- bioconda
+dependencies:
+# Python
+- pandas
+- python
+- numpy
+- snakemake-minimal
+# R
+- bioconductor-genomicranges
+- bioconductor-gviz
+- bioconductor-repitools
+- bioconductor-rtracklayer
+- r-base>=4.0
+- r-data.table
+- r-devtools
+- r-reshape2
+- r-tidyverse
+- r-tseries
+- r-venndiagram
+- r-zoo
