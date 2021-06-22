@@ -1,7 +1,12 @@
+# R files
 .Rproj.user
 .Rhistory
 *.Rdata
+*.RDS
+*.Rproj
+# result files
+*.bw
 *.pdf
 *.tsv
-*.RDS
-data/p*
+# directories
+data/
