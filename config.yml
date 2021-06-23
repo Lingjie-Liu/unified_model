@@ -1,0 +1,4 @@
+comparaReg:
+    "/local/projects/comparaReg"
+comparaReg_analyses:
+    "/home/yizhao/projects/Snakemake_projects/comparaReg_analyses"

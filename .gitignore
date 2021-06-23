@@ -10,3 +10,4 @@
 *.tsv
 # directories
 data/
+results/

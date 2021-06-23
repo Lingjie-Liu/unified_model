@@ -13,6 +13,7 @@ dependencies:
 # R
 - bioconductor-genomicranges
 - bioconductor-gviz
+- bioconductor-plyranges
 - bioconductor-repitools
 - bioconductor-rtracklayer
 - r-base>=4.0
