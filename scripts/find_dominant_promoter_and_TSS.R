@@ -43,7 +43,7 @@ texp <- texp %>%
 # get model expressions
 mexp <- texp %>%
   group_by(model) %>%
-  slice(1) %>%
+  dplyr::slice(1) %>%
   ungroup()
 
 # get promoter expressions
