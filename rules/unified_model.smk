@@ -1,7 +1,7 @@
 rule find_dominant_promoter_and_TSS:
     input:
-        tq = os.path.join(crana_dir + "results/denr/combine/tq/human_rhesus", "template-{scheme}.RDS"),
-        texp = os.path.join(crana_dir + "results/denr/combine/texp/human_rhesus", combine_wildcard + "-{scheme}.csv")
+        tq = os.path.join(crana_dir, "results/denr/combine/tq/human_rhesus", "template-{scheme}.RDS"),
+        texp = os.path.join(crana_dir, "results/denr/combine/texp/human_rhesus", combine_wildcard + "-{scheme}.csv")
     params:
         texp_cutoff = 10, # filter out genes with dominant promoter with expressions lower than this cutoff
         tid_cutoff = 1000 # filter out TSSs region from dominant promoter larger than this distance
