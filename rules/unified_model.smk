@@ -7,7 +7,7 @@ rule find_dominant_promoter_and_TSS:
         tid_cutoff = 1000 # filter out TSSs region from dominant promoter larger than this distance
     threads:1
     log:
-        os.path.join("logs/find_dominant_promoter_and_TSS", combine_wildcard + ".log")
+        os.path.join("logs/find_dominant_promoter_and_TSS", combine_wildcard + "-{scheme}.log")
     output:
         tid = os.path.join("results/tidgrng", combine_wildcard + "-{scheme}.RDS")
     script:
