@@ -56,7 +56,7 @@ tid_union <- tid_union[width(tid_union) <= tid_cutoff]
 # resize to a fixed region for searching highest PRO-seq counts
 tid_resize <- resize(tid_union, width = 3000, fix = "center")
 
-# import bigwigs
+# import and process bigwigs
 bwp1_p5 <- import.bw(bwp1_p5_in)
 bwm1_p5 <- import.bw(bwm1_p5_in)
 
@@ -66,11 +66,30 @@ bwm2_p5 <- import.bw(bwm2_p5_in)
 strand(bwp1_p5) <- "+"
 strand(bwp2_p5) <- "+"
 
-bwm <- bwm1_p5
+process_bwm <- function(bwm) {
+  strand(bwm) <- "-"
+  bwm$score <- abs(bwm$score)
+  bwm <- bwm[bwm$score > 0]
+  return(bwm)
+}
 
-strand(bwm) <- "-"
-bwm$score <- abs(bwm$score)
-bwm <- bwm[bwm$score > 0]
+bwm1_p5 <- process_bwm(bwm1_p5)
+bwm2_p5 <- process_bwm(bwm2_p5)
 
-bw1_p5
+bw1_p5 <- c(bwp1_p5, bwm1_p5)
+bw2_p5 <- c(bwp2_p5, bwm2_p5)
+
+#
+bw_p5 <- bw1_p5
+
+ovp <- findOverlaps(tid_resize, bw_p5)
+bw_p5 <- bw_p5[subjectHits(ovp)]
+bw_p5$ensembl_gene_id <- tid_resize[queryHits(ovp)]$ensembl_gene_id
+bw_p5 <- bw_p5 %>%
+  plyranges::group_by(ensembl_gene_id) %>%
+  filter(score == max(score)) %>%
+  ungroup()
+
+bw_p5$ensembl_gene_id[table(bw_p5$ensembl_gene_id) > 1]
+
 
