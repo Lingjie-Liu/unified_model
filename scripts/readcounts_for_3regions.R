@@ -145,7 +145,7 @@ go_rc <- function(tss_union, bw_file, cell_strand, extension, l, m){
       st_end = max(end(sub_grng))
       st_start = st_end - (m-1)
       
-      if ((st_end - sp_start) > (l+m+m)){ # make sure gene is long enough
+      if ((st_start - sp_end) > (l+extension)){ # make sure gene is long enough
         genes = c(genes, gene)
         asp_start =c(asp_start, sp_start)
         asp_end =c(asp_end, sp_end)
@@ -171,7 +171,7 @@ go_rc <- function(tss_union, bw_file, cell_strand, extension, l, m){
       st_start = min(start(sub_grng))
       st_end = st_start + (m-1)
       
-      if ((sp_end - st_start) > (l+m+m)){
+      if ((sp_start - st_end) > (l+extension)){ # make sure gene is long enough
         genes = c(genes, gene)
         asp_start =c(asp_start, sp_start)
         asp_end =c(asp_end, sp_end)
@@ -251,3 +251,4 @@ merge_rc_position <- function(sample){
 for(sample in samples){
   merge_rc_position(sample)
 }
+
