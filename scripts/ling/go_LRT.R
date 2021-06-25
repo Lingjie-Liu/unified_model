@@ -4,7 +4,7 @@ library(dplyr)
 library(data.table)
 
 # root_dir = "C:/Users/ling/Dropbox/scripts/"
-root_dir <- "./github/" 
+root_dir <- "~/github/" 
 
 output_dir = paste0(root_dir, "unified_model/data/")
 
