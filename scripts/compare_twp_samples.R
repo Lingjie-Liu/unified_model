@@ -92,4 +92,7 @@ bw_p5 <- bw_p5 %>%
 
 bw_p5$ensembl_gene_id[table(bw_p5$ensembl_gene_id) > 1]
 
+bw_p5[bw_p5$ensembl_gene_id %in% names(tmp[tmp > 1])]$score
 
+tmp <- table(bw_p5$ensembl_gene_id)
+names(tmp[tmp > 1])
