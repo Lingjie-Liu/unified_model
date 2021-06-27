@@ -18,7 +18,7 @@ tid_cutoff <- snakemake@params[["tid_cutoff"]]
 tid_out <- snakemake@output[["tid"]]
 
 #### testing files ####
-root_dir <- "~/github/unified_model"
+root_dir <- "~/Desktop/github_repo/unified_model"
 
 tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
 tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
@@ -39,9 +39,11 @@ tsn_cutoff <- 5
 tss_cutoff <- 500
 pause_cutoff <- 250
 gb_start <- 2000
-gb_length <- 6000
+gb_length <- 6000 # parameter l
+tts_length <- pause_cutoff # parameter m
 
-dir.create(file.path(root_dir, "results/between_samples"), showWarnings = FALSE, recursive = TRUE)
+result_dir <- file.path(root_dir, "results/between_samples", "CD4")
+dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
 
 #### end of parsing arguments ####
 #### generate regions for read counting ####
@@ -162,7 +164,7 @@ bw_gb_filtered <- bw_gb[gn_filter]
 bw_tts_filtered <-
   bw_tts[bw_tts$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id] %>%
   plyranges::anchor_3p() %>%
-  mutate(width = pause_cutoff)
+  mutate(width = tts_length)
 
 bw_pause_filtered <- bw_pause[bw_pause$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id]
 
@@ -180,7 +182,7 @@ bwm1_p3 <- process_bwm(bwm1_p3)
 bwm2_p3 <- process_bwm(bwm2_p3)
 
 bw1_p3 <- c(bwp1_p3, bwm1_p3)
-bw2_p3 <- c(bwp2_p3, bwm2_p3) 
+bw2_p3 <- c(bwp2_p3, bwm2_p3)
 
 # summarize read counts
 summarise_bw <-
@@ -193,12 +195,147 @@ summarise_bw <-
     return(rc)
   }
 
-rc1_pause <- summarise_bw(bw1_p3, bw_pause_filtered, "pause")
-rc2_pause <- summarise_bw(bw2_p3, bw_pause_filtered, "pause")
+rc1_pause <- summarise_bw(bw1_p3, bw_pause_filtered, "sp1")
+rc2_pause <- summarise_bw(bw2_p3, bw_pause_filtered, "sp2")
+rc1_pause$pause_length <- width(bw_pause_filtered)
+rc2_pause$pause_length <- width(bw_pause_filtered)
+rc1_pause <- rc1_pause[c(1,3,2)] # reorder columns
+rc2_pause <- rc2_pause[c(1,3,2)]
 
-rc1_gb <- summarise_bw(bw1_p3, bw_gb_filtered, "gb")
-rc2_gb <- summarise_bw(bw2_p3, bw_gb_filtered, "gb")
+rc1_gb <- summarise_bw(bw1_p3, bw_gb_filtered, "sb1")
+rc2_gb <- summarise_bw(bw2_p3, bw_gb_filtered, "sb2")
 
-rc1_tts <- summarise_bw(bw1_p3, bw_tts_filtered, "tts")
-rc2_tts <- summarise_bw(bw2_p3, bw_tts_filtered, "tts")
+rc1_tts <- summarise_bw(bw1_p3, bw_tts_filtered, "st1")
+rc2_tts <- summarise_bw(bw2_p3, bw_tts_filtered, "st2")
+
+#### Poisson-based Maximum Likelihood Estimation ####
+rc1 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
+               list(rc1_pause, rc1_gb, rc1_tts))
+rc2 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
+               list(rc2_pause, rc2_gb, rc2_tts))
+
+lambda_1 <- sum(rc1$sb1, na.rm = TRUE) / (sum(!is.na(rc1$sb1)) * gb_length)
+lambda_2 <- sum(rc2$sb2, na.rm = TRUE) / (sum(!is.na(rc2$sb2)) * gb_length)
+
+alpha_1 = rc1$sb1 / (gb_length * lambda_1)
+beta_1 = (rc1$sb1 / gb_length) / (rc1$sp1 / rc1$pause_length)
+gamma_1 = (rc1$sb1 / gb_length) / (rc1$st1 / tts_length)
+
+alpha_2 = rc2$sb2 / (gb_length * lambda_2)
+beta_2 = (rc2$sb2 / gb_length) / (rc2$sp2 / rc2$pause_length)
+gamma_2 = (rc2$sb2 / gb_length) / (rc2$st2 / tts_length)
+
+#### Poisson-based Likelihood Ratio Tests ####
+## LRT for alpha ##
+# get read counts
+alpha_lrt_stat <-
+  tibble(
+    gene_id = bw_pause_filtered$ensembl_gene_id,
+    t11 = rc1$sb1 / gb_length,
+    t21 = rc2$sb2 / gb_length,
+    sb = rc1$sb1 + rc2$sb2,
+    lambda_gb_length = gb_length * (lambda_1 + lambda_2)
+  )
+
+# compute T statistic
+alpha_lrt_stat <- alpha_lrt_stat %>%
+  mutate(t = rc1$sb1 * (log(t11) -  log(lambda_1 * sb / lambda_gb_length)) +
+           rc2$sb2 * (log(t21) - log(lambda_2 * sb / lambda_gb_length)))
+
+# compute p value
+alpha_lrt_stat <- alpha_lrt_stat %>%
+  mutate(p = pchisq(2 * t, df = 1, ncp = 0, lower.tail = F, log.p = FALSE)) %>%
+  mutate(q = p.adjust(p, method = "BH"))
+
+# clean up data frame
+alpha_lrt <- alpha_lrt_stat %>%
+  mutate(alpha_1 = alpha_1,
+         alpha_2 = alpha_2,
+         lfc = log2(alpha_1 / alpha_2)) %>%
+  select(gene_id, alpha_1, alpha_2, lfc, t, p, q)
+
+write_csv(alpha_lrt, file = file.path(result_dir, "alpha.csv"))
+
+## LRT for beta ##
+# get read counts
+beta_lrt_stat <-
+  tibble(
+    gene_id = bw_pause_filtered$ensembl_gene_id,
+    sp1 = rc1$sp1,
+    sp2 = rc2$sp2,
+    sb1 = rc1$sb1,
+    sb2 = rc2$sb2
+    )
+
+# compute T statistic
+beta_lrt_stat <- beta_lrt_stat %>% mutate(
+  sp = sp1 + sp2, # SP1+SP2
+  sb = sb1 + sb2, # SB1+SB2
+  pb1 = sp1 + sb1, # SP1+SB1
+  pb2 = sp2 + sb2, # SP2+SB2
+  spb = sp + sb, #SP1+SB1+SP2+SB2,
+  t1 = sp1*log(sp1) + sb1*log(sb1) + sp2*log(sp2) + sb2*log(sb2),
+  t2 = sp*log(sp) + sb*log(sb) + pb1*log(pb1) + pb2*log(pb2),
+  t3 = spb*log(spb),
+  t = t1 - t2 + t3
+)
+
+# compute p value
+beta_lrt_stat <- beta_lrt_stat %>%
+  mutate(p = pchisq(2 * t, df = 1, ncp = 0, lower.tail = F, log.p = FALSE)) %>%
+  mutate(q = p.adjust(p, method = "BH"))
+
+# clean up data frame
+beta_lrt <- beta_lrt_stat %>%
+  mutate(beta_1 = beta_1,
+         beta_2 = beta_2,
+         lfc = log2(beta_1 / beta_2)) %>%
+  select(gene_id, beta_1, beta_2, lfc, t, p, q)
+
+write_csv(beta_lrt, file = file.path(result_dir, "beta.csv"))
+
+#### visualize results ####
+violion_plot <- function(df) {
+  df %>% na.omit() %>%
+    ggplot(aes(x = name, y = log2(value))) +
+    geom_violin() +
+    geom_boxplot(width = 0.1) +
+    labs(x = "") +
+    cowplot::theme_cowplot()
+}
+
+p <- alpha_lrt %>%
+  select(contains("alpha")) %>%
+  pivot_longer(cols = contains("alpha")) %>%
+  violion_plot()
+
+ggsave(file.path(result_dir, "alpha_distribution.pdf"), plot = p,
+       width = 8, height = 6)
+
+p <- beta_lrt %>%
+  select(contains("beta")) %>%
+  pivot_longer(cols = contains("beta")) %>%
+  violion_plot()
+
+ggsave(file.path(result_dir, "beta_distribution.pdf"), plot = p,
+       width = 8, height = 6)
+
+# volcano plot
+volcano_plot <- function(df, sig_p) {
+  df$significant <- df$q < sig_p
+  df %>% na.omit() %>%
+    ggplot(aes(x = lfc, y = -log10(q), color = significant)) +
+    geom_point() +
+    scale_color_manual(values = c("grey", "red")) +
+    labs(x = "log fold change") +
+    cowplot::theme_cowplot()
+}
+
+p <- volcano_plot(alpha_lrt, sig_p = 0.05)
+ggsave(file.path(result_dir, "alpha_lrt_volcano.pdf"), plot = p,
+       width = 8, height = 6)
+
+p <- volcano_plot(beta_lrt, sig_p = 0.05)
+ggsave(file.path(result_dir, "beta_lrt_volcano.pdf"), plot = p,
+       width = 8, height = 6)
 

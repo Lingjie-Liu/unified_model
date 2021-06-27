@@ -17,6 +17,7 @@ dependencies:
 - bioconductor-repitools
 - bioconductor-rtracklayer
 - r-base>=4.0
+- r-cowplot
 - r-data.table
 - r-devtools
 - r-ggthemes
