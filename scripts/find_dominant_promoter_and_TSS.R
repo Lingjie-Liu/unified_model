@@ -11,6 +11,7 @@ library(GenomicRanges)
 #### snakemake files ####
 tq_in <- snakemake@input[["tq"]]
 texp_in <- snakemake@input[["texp"]]
+non_olp_gn_in <- snakemake@input[["non_olp_gn"]]
 
 texp_cutoff <- snakemake@params[["texp_cutoff"]]
 tid_cutoff <- snakemake@params[["tid_cutoff"]]
@@ -22,8 +23,9 @@ tid_out <- snakemake@output[["tid"]]
 # 
 # tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
 # texp_in <- file.path(root_dir, "data/texp/human_rhesus/PROseq-HUMAN-CD4-26.csv")
+# non_olp_gn_in <- file.path(root_dir, "data/non_overlapping_coding_genes.csv")
 # 
-# texp_cutoff <- 10
+# texp_cutoff <- 1
 # tid_cutoff <- 1000
 # 
 # tid_out <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
@@ -34,10 +36,12 @@ tid_out <- snakemake@output[["tid"]]
 # read files in
 tq <- readRDS(tq_in)
 texp <- read_csv(texp_in)
+non_olp_gn <- read_csv(non_olp_gn_in, col_types = cols(seqnames = col_character()))
 
-# join tss and tts groups
+# filter out overlapping genes, then join tss and tts groups
 tm <- tq@transcript_model_key
 texp <- texp %>%
+  filter(gene_name %in% non_olp_gn$ensembl_gene_id) %>%  
   left_join(tm, by = c("transcript_name" = "tx_name"), suffix = c("", "_set"))
 
 # get model expressions
@@ -54,7 +58,7 @@ pexp <- mexp %>%
 
 # pick dominant promoter
 dpexp <- pexp %>%
-  filter(abundance > texp_cutoff) %>%
+  dplyr::filter(abundance > texp_cutoff) %>%
   group_by(gene_name) %>%
   slice_max(abundance) %>%
   ungroup()
@@ -80,7 +84,7 @@ tidgrng <- tssgrng %>%
   plyranges::as_granges()
 
 # filter out some gens with extremely long tid
-tidgrng <- tidgrng[width(tidgrng) <= tid_cutoff]
+tidgrng <- tidgrng[width(tidgrng) < tid_cutoff]
 
 # save output
 saveRDS(tidgrng, tid_out)
