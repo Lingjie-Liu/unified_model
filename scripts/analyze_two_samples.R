@@ -18,7 +18,7 @@ tid_cutoff <- snakemake@params[["tid_cutoff"]]
 tid_out <- snakemake@output[["tid"]]
 
 #### testing files ####
-root_dir <- "~/Desktop/github_repo/unified_model"
+root_dir <- "~/github/unified_model"
 
 tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
 tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
@@ -34,12 +34,14 @@ bwm2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4
 bwp2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
 bwm2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
 
-tid_cutoff <- 1000
+tid_cutoff <- 1000 # length cutoff for how long a TID containing multiple TSSs could span
 tsn_cutoff <- 5
-tss_cutoff <- 500
 pause_cutoff <- 250
-gb_start <- 2000
-gb_length <- 6000 # parameter l
+
+# gb_start <- 2000
+# gb_length <- 6000 # parameter l
+
+gb_min_length <- 1e4
 tts_length <- pause_cutoff # parameter m
 
 result_dir <- file.path(root_dir, "results/between_samples", "CD4")
@@ -53,8 +55,11 @@ tid2 <- readRDS(tid2_in)
 
 shared_gn <- intersect(tid1$ensembl_gene_id, tid2$ensembl_gene_id)
 
-tid_union <- punion(tid1[match(shared_gn, tid1$ensembl_gene_id), ],
-       tid2[match(shared_gn, tid2$ensembl_gene_id), ], fill.gap = TRUE)
+# only keep genes shared by two samples
+tid1 <- tid1[match(shared_gn, tid1$ensembl_gene_id), ]
+tid2 <- tid2[match(shared_gn, tid2$ensembl_gene_id), ]
+
+tid_union <- punion(tid1, tid2, fill.gap = TRUE)
 
 tid_union$ensembl_gene_id <- shared_gn
 
@@ -73,6 +78,7 @@ bwm2_p5 <- import.bw(bwm2_p5_in)
 strand(bwp1_p5) <- "+"
 strand(bwp2_p5) <- "+"
 
+# clean up reads from minus strand
 process_bwm <- function(bwm) {
   strand(bwm) <- "-"
   bwm$score <- abs(bwm$score)
@@ -86,8 +92,9 @@ bwm2_p5 <- process_bwm(bwm2_p5)
 bw1_p5 <- c(bwp1_p5, bwm1_p5)
 bw2_p5 <- c(bwp2_p5, bwm2_p5)
 
-# get transcription start nucleotide
+rm(bwp1_p5, bwp2_p5, bwm1_p5, bwm2_p5)
 
+# get transcription start nucleotide (TSN)
 get_max_tsn <- function(bw_p5) {
   ovp <- findOverlaps(tid_resize, bw_p5)
   bw_p5 <- bw_p5[subjectHits(ovp)]
@@ -117,12 +124,16 @@ get_genes_with_single_tsn <- function(bw_tsn) {
   names(bw_tsn_ct[bw_tsn_ct == 1])
 }
 
-gn_wt_single_tsn <-
-  intersect(get_genes_with_single_tsn(bw1_tsn),
-            get_genes_with_single_tsn(bw2_tsn))
+bw1_single_tsn <- get_genes_with_single_tsn(bw1_tsn)
+bw2_single_tsn <- get_genes_with_single_tsn(bw2_tsn)
+
+gn_wt_single_tsn <- intersect(bw1_single_tsn, bw2_single_tsn)
 
 bw1_tsn <- sort(bw1_tsn[bw1_tsn$ensembl_gene_id %in% gn_wt_single_tsn])
 bw2_tsn <- sort(bw2_tsn[bw2_tsn$ensembl_gene_id %in% gn_wt_single_tsn])
+
+seqlevels(bw1_tsn) <- seqlevelsInUse(bw1_tsn)
+seqlevels(bw2_tsn) <- seqlevelsInUse(bw2_tsn)
 
 # get regions downstream TSNs
 bw1_pause <- promoters(bw1_tsn, upstream = 0, downstream = pause_cutoff)
@@ -131,11 +142,11 @@ bw2_pause <- promoters(bw2_tsn, upstream = 0, downstream = pause_cutoff)
 bw_pause <- punion(bw1_pause, bw2_pause, fill.gap = TRUE)
 bw_pause$ensembl_gene_id <- bw1_pause$ensembl_gene_id
 
-bw_pause <- bw_pause[width(bw_pause) < tss_cutoff]
+bw_pause <- bw_pause[width(bw_pause) < tid_cutoff]
 
-# get gene body region
-bw_gb <- bw_pause %>% plyranges::shift_downstream(gb_start)
-bw_gb <- bw_gb %>% plyranges::anchor_5p() %>% mutate(width = gb_length)
+# # get gene body region by fixed length
+# bw_gb <- bw_pause %>% plyranges::shift_downstream(gb_start)
+# bw_gb <- bw_gb %>% plyranges::anchor_5p() %>% mutate(width = gb_length)
 
 # get TTS by using annotated gene regions
 tq <- readRDS(tq_in)
@@ -147,26 +158,53 @@ gngrng <- txgrng %>%
   plyranges::reduce_ranges_directed() %>%
   sort()
 
-bw_tts <- gngrng %>% plyranges::anchor_3p() %>% mutate(width = 1)
+seqlevels(gngrng) <- seqlevelsInUse(gngrng)
 
-# make sure gene body doesn't exceed TTS
-bw_gb_end <- bw_gb %>% plyranges::anchor_3p() %>% mutate(width = 1)
+# bw_tts <- gngrng %>% plyranges::anchor_3p() %>% mutate(width = 1)
+bw_tts <- gngrng %>% plyranges::anchor_3p() %>% mutate(width = 250)
 
-bw_gb_end$indicator <- (start(bw_tts) > start(bw_gb_end))
-gn_filter <-
-  ifelse((strand(bw_gb_end) == "+" & bw_gb_end$indicator) |
-           (strand(bw_gb_end) == "-" & !bw_gb_end$indicator),
-       TRUE, FALSE)
+# get gene body region by pause and termination sites
+bw_pause_end <- bw_pause %>% plyranges::anchor_3p() %>% mutate(width = 1)
+bw_tts_end  <- bw_tts %>% plyranges::anchor_5p() %>% mutate(width = 1)
 
-# get three regions for read counting
-bw_gb_filtered <- bw_gb[gn_filter]
+seqlevels(bw_pause_end) <- seqlevels(bw_tts_end)
+bw_pause_end <- sort(bw_pause_end)
+bw_tts_end <- sort(bw_tts_end)
 
+bw_gb <- punion(bw_pause_end, bw_tts_end, fill.gap = TRUE)
+bw_gb$ensembl_gene_id <- bw_pause_end$ensembl_gene_id
+
+bw_gb_filtered <- bw_gb[width(bw_gb) > gb_min_length]
+# trim either end to avoid pausing and termination peaks
+bw_gb_filtered <- bw_gb_filtered - 2000
+
+bw_pause_filtered <-
+  bw_pause[bw_pause$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id]
 bw_tts_filtered <-
-  bw_tts[bw_tts$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id] %>%
-  plyranges::anchor_3p() %>%
-  mutate(width = tts_length)
+  bw_tts[bw_tts$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id]
 
-bw_pause_filtered <- bw_pause[bw_pause$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id]
+# # make sure gene body doesn't exceed TTS
+# bw_gb_end <- bw_gb %>% plyranges::anchor_3p() %>% mutate(width = 1)
+# 
+# bw_gb_end$indicator <- (start(bw_tts) > start(bw_gb_end))
+# 
+# gn_filter <-
+#   ifelse((strand(bw_gb_end) == "+" & bw_gb_end$indicator) |
+#            (strand(bw_gb_end) == "-" & !bw_gb_end$indicator),
+#        TRUE, FALSE)
+# 
+# # get three regions for read counting
+# bw_gb_filtered <- bw_gb[gn_filter]
+# 
+# bw_tts_filtered <-
+#   bw_tts[bw_tts$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id] %>%
+#   plyranges::anchor_3p() %>%
+#   mutate(width = tts_length)
+# 
+# bw_pause_filtered <- bw_pause[bw_pause$ensembl_gene_id %in% bw_gb_filtered$ensembl_gene_id]
+
+count_grng <- sort(c(bw_pause_filtered, bw_gb_filtered, bw_tts_filtered))
+saveRDS(count_grng, file = file.path(result_dir, "granges_for_read_counting.RDS"))
 
 # import and process bigwigs for 3' end
 bwp1_p3 <- import.bw(bwp1_p3_in)
@@ -184,29 +222,32 @@ bwm2_p3 <- process_bwm(bwm2_p3)
 bw1_p3 <- c(bwp1_p3, bwm1_p3)
 bw2_p3 <- c(bwp2_p3, bwm2_p3)
 
-count_grng <- sort(c(bw_pause_filtered, bw_gb_filtered, bw_tts_filtered))
-saveRDS(count_grng, file = file.path(result_dir, "granges_for_read_counting.RDS"))
-
 # summarize read counts
 summarise_bw <-
   function(bw, grng, col_name) {
     rc <- grng %>%
       plyranges::group_by_overlaps(bw) %>%
+      group_by(ensembl_gene_id) %>% 
       summarise(score = sum(score))
-    rc$query <- grng[rc$query]$ensembl_gene_id
     colnames(rc) <- c("gene_id", col_name)
     return(rc)
   }
 
 rc1_pause <- summarise_bw(bw1_p3, bw_pause_filtered, "sp1")
 rc2_pause <- summarise_bw(bw2_p3, bw_pause_filtered, "sp2")
-rc1_pause$pause_length <- width(bw_pause_filtered)
-rc2_pause$pause_length <- width(bw_pause_filtered)
-rc1_pause <- rc1_pause[c(1,3,2)] # reorder columns
-rc2_pause <- rc2_pause[c(1,3,2)]
+
+rc1_pause$pause_length <-
+  width(bw_pause_filtered)[match(rc1_pause$gene_id, bw_pause_filtered$ensembl_gene_id)]
+rc2_pause$pause_length <- 
+  width(bw_pause_filtered)[match(rc2_pause$gene_id, bw_pause_filtered$ensembl_gene_id)]
 
 rc1_gb <- summarise_bw(bw1_p3, bw_gb_filtered, "sb1")
 rc2_gb <- summarise_bw(bw2_p3, bw_gb_filtered, "sb2")
+
+rc1_gb$gb_length <-
+  width(bw_gb_filtered)[match(rc1_gb$gene_id, bw_gb_filtered$ensembl_gene_id)]
+rc2_gb$gb_length <-
+  width(bw_gb_filtered)[match(rc2_gb$gene_id, bw_gb_filtered$ensembl_gene_id)]
 
 rc1_tts <- summarise_bw(bw1_p3, bw_tts_filtered, "st1")
 rc2_tts <- summarise_bw(bw2_p3, bw_tts_filtered, "st2")
@@ -225,24 +266,24 @@ rc2 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
 lambda_1 <- (sum(bwp1_p3$score) + sum(bwm1_p3$score)) / (sum(width(bwp1_p3)) + sum(width(bwm1_p3)))
 lambda_2 <- (sum(bwp2_p3$score) + sum(bwm2_p3$score)) / (sum(width(bwp2_p3)) + sum(width(bwm2_p3)))
 
-alpha_1 = rc1$sb1 / (gb_length * lambda_1)
-beta_1 = (rc1$sb1 / gb_length) / (rc1$sp1 / rc1$pause_length)
-gamma_1 = (rc1$sb1 / gb_length) / (rc1$st1 / tts_length)
+alpha_1 <- rc1$sb1 / (rc1$gb_length * lambda_1)
+beta_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$sp1 / rc1$pause_length)
+gamma_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$st1 / tts_length)
 
-alpha_2 = rc2$sb2 / (gb_length * lambda_2)
-beta_2 = (rc2$sb2 / gb_length) / (rc2$sp2 / rc2$pause_length)
-gamma_2 = (rc2$sb2 / gb_length) / (rc2$st2 / tts_length)
+alpha_2 <- rc2$sb2 / (rc2$gb_length * lambda_2)
+beta_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$sp2 / rc2$pause_length)
+gamma_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$st2 / tts_length)
 
 #### Poisson-based Likelihood Ratio Tests ####
 ## LRT for alpha ##
 # get read counts
 alpha_lrt_stat <-
   tibble(
-    gene_id = bw_pause_filtered$ensembl_gene_id,
-    t11 = rc1$sb1 / gb_length,
-    t21 = rc2$sb2 / gb_length,
+    gene_id = rc1$gene_id,
+    t11 = rc1$sb1 / rc1$gb_length,
+    t21 = rc2$sb2 / rc2$gb_length,
     sb = rc1$sb1 + rc2$sb2,
-    lambda_gb_length = gb_length * (lambda_1 + lambda_2)
+    lambda_gb_length = rc1$gb_length * lambda_1 + rc2$gb_length * lambda_2
   )
 
 # compute T statistic
@@ -268,7 +309,7 @@ write_csv(alpha_lrt, file = file.path(result_dir, "alpha.csv"))
 # get read counts
 beta_lrt_stat <-
   tibble(
-    gene_id = bw_pause_filtered$ensembl_gene_id,
+    gene_id = rc1$gene_id,
     sp1 = rc1$sp1,
     sp2 = rc2$sp2,
     sb1 = rc1$sb1,

@@ -19,7 +19,7 @@ tid_cutoff <- snakemake@params[["tid_cutoff"]]
 tid_out <- snakemake@output[["tid"]]
 
 #### testing files ####
-root_dir <- "~/Desktop/github_repo/unified_model"
+root_dir <- "~/github/unified_model"
 
 tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
 
