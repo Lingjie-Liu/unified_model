@@ -184,6 +184,9 @@ bwm2_p3 <- process_bwm(bwm2_p3)
 bw1_p3 <- c(bwp1_p3, bwm1_p3)
 bw2_p3 <- c(bwp2_p3, bwm2_p3)
 
+count_grng <- sort(c(bw_pause_filtered, bw_gb_filtered, bw_tts_filtered))
+saveRDS(count_grng, file = file.path(result_dir, "granges_for_read_counting.RDS"))
+
 # summarize read counts
 summarise_bw <-
   function(bw, grng, col_name) {
@@ -214,8 +217,13 @@ rc1 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
 rc2 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
                list(rc2_pause, rc2_gb, rc2_tts))
 
-lambda_1 <- sum(rc1$sb1, na.rm = TRUE) / (sum(!is.na(rc1$sb1)) * gb_length)
-lambda_2 <- sum(rc2$sb2, na.rm = TRUE) / (sum(!is.na(rc2$sb2)) * gb_length)
+# Use all analyzed genes
+# lambda_1 <- sum(rc1$sb1, na.rm = TRUE) / (sum(!is.na(rc1$sb1)) * gb_length)
+# lambda_2 <- sum(rc2$sb2, na.rm = TRUE) / (sum(!is.na(rc2$sb2)) * gb_length)
+
+# Use all loci
+lambda_1 <- (sum(bwp1_p3$score) + sum(bwm1_p3$score)) / (sum(width(bwp1_p3)) + sum(width(bwm1_p3)))
+lambda_2 <- (sum(bwp2_p3$score) + sum(bwm2_p3$score)) / (sum(width(bwp2_p3)) + sum(width(bwm2_p3)))
 
 alpha_1 = rc1$sb1 / (gb_length * lambda_1)
 beta_1 = (rc1$sb1 / gb_length) / (rc1$sp1 / rc1$pause_length)
