@@ -13,6 +13,7 @@ cd4_rc = readRDS(paste0(output_dir, "cd4_rc.RData"))
 test_genes = inner_join(cd14_rc, cd4_rc, by = "genes")
 names(test_genes) = c('gene_id', 'cd14_tss', 'cd14_gb', 'cd14_tts', 
                       'cd4_tss', 'cd4_gb', 'cd4_tts')
+saveRDS(test_genes, paste0(output_dir, 'cd14_cd4_rc.Rdata'))
 
 # load reads count positions and calculate length parameters: k,l,m
 cd14_rc_position = readRDS(paste0(output_dir, "cd14_rc_position.RData"))
