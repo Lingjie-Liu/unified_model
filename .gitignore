@@ -11,3 +11,5 @@
 # directories
 data/
 results/
+
+nohup.out
