@@ -18,7 +18,7 @@ tid_cutoff <- snakemake@params[["tid_cutoff"]]
 tid_out <- snakemake@output[["tid"]]
 
 #### testing files ####
-root_dir <- "~/github/unified_model"
+root_dir <- "~/Desktop/github/unified_model"
 
 tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
 tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
@@ -37,6 +37,8 @@ bwm2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4
 tid_cutoff <- 1000 # length cutoff for how long a TID containing multiple TSSs could span
 tsn_cutoff <- 5
 pause_cutoff <- 250
+
+quantile_normalization <- TRUE 
 
 # gb_start <- 2000
 # gb_length <- 6000 # parameter l
