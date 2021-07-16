@@ -280,33 +280,38 @@ if (!quantile_normalization) {
 }
 
 if (quantile_normalization) {
-  alpha_1 <- rc1$sb1 / rc1$gb_length
-  beta_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$sp1 / rc1$pause_length)
+  gb_density_1 <- rc1$sb1 / rc1$gb_length
+  gb_density_2 <- rc2$sb2 / rc2$gb_length
   
-  alpha_2 <- rc2$sb2 / rc2$gb_length
-  beta_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$sp2 / rc2$pause_length)
+  pause_index_1 <- (rc1$sp1 / rc1$pause_length) / (rc1$sb1 / rc1$gb_length)
+  pause_index_2 <- (rc2$sp2 / rc2$pause_length) / (rc2$sb2 / rc2$gb_length)
   
-  alpha_qnorm <- normalize.quantiles(cbind(alpha_1, alpha_2))
-  alpha_1 <- alpha_qnorm[, 1]
-  alpha_2 <- alpha_qnorm[, 2]
+  gb_density <- cbind(gb_density_1, gb_density_2)
+  pause_index <- cbind(pause_index_1, pause_index_2)
   
-  alpha_beta_qnorm <- normalize.quantiles(cbind(alpha_1 / beta_1, alpha_2 / beta_2))
-  beta_qnorm <- alpha_qnorm / alpha_beta_qnorm
+  gb_density_qnorm <- normalize.quantiles(gb_density)
+  pause_index_qnorm <- normalize.quantiles(pause_index)
   
-  beta_1 <- beta_qnorm[, 1]
-  beta_2 <- beta_qnorm[, 2]
-  pause_density_1 <- alpha_beta_qnorm[, 1]
-  pause_density_2 <- alpha_beta_qnorm[, 2]
+  sf_rho <- gb_density_qnorm / gb_density # scale factor 1
+  sf_gamma <- pause_index_qnorm / pause_index # scale factor 2
   
-  # get read counts back after normalization
-  rc1$sb1 <- alpha_1 * rc1$gb_length
-  rc2$sb2 <- alpha_2 * rc2$gb_length
-  rc1$sp1 <- pause_density_1 * rc1$pause_length
-  rc2$sp2 <- pause_density_2 * rc2$pause_length
+  # scaling read counts
+  rc1$sb1 <- rc1$sb1 * sf_rho[, 1] 
+  rc2$sb2 <- rc2$sb2 * sf_rho[, 2] 
+  
+  rc1$sp1 <- rc1$sp1 * sf_rho[, 1] * sf_gamma[, 1]
+  rc2$sp2 <- rc2$sp2 * sf_rho[, 2] * sf_gamma[, 2]
   
   # set lamda1 and lamda2 the same
   lambda_1 <- 1
   lambda_2 <- 1
+  
+  # calculate alpha and beta
+  alpha_1 <- rc1$sb1 / (rc1$gb_length * lambda_1)
+  beta_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$sp1 / rc1$pause_length)
+  
+  alpha_2 <- rc2$sb2 / (rc2$gb_length * lambda_2)
+  beta_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$sp2 / rc2$pause_length)
 }
 
 #### Poisson-based Likelihood Ratio Tests ####
