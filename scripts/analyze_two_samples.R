@@ -7,6 +7,7 @@ sink(file = log, type = "message")
 library(tidyverse)
 library(GenomicRanges)
 library(rtracklayer)
+library(preprocessCore)
 
 #### snakemake files ####
 tq_in <- snakemake@input[["tq"]]
@@ -137,7 +138,7 @@ bw2_tsn <- sort(bw2_tsn[bw2_tsn$ensembl_gene_id %in% gn_wt_single_tsn])
 seqlevels(bw1_tsn) <- seqlevelsInUse(bw1_tsn)
 seqlevels(bw2_tsn) <- seqlevelsInUse(bw2_tsn)
 
-# get regions downstream TSNs
+# get TSNs downstream regions for pause peak
 bw1_pause <- promoters(bw1_tsn, upstream = 0, downstream = pause_cutoff)
 bw2_pause <- promoters(bw2_tsn, upstream = 0, downstream = pause_cutoff)
 
@@ -265,16 +266,48 @@ rc2 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
 # lambda_2 <- sum(rc2$sb2, na.rm = TRUE) / (sum(!is.na(rc2$sb2)) * gb_length)
 
 # Use all loci
-lambda_1 <- (sum(bwp1_p3$score) + sum(bwm1_p3$score)) / (sum(width(bwp1_p3)) + sum(width(bwm1_p3)))
-lambda_2 <- (sum(bwp2_p3$score) + sum(bwm2_p3$score)) / (sum(width(bwp2_p3)) + sum(width(bwm2_p3)))
+if (!quantile_normalization) {
+  lambda_1 <- (sum(bwp1_p3$score) + sum(bwm1_p3$score)) / (sum(width(bwp1_p3)) + sum(width(bwm1_p3)))
+  lambda_2 <- (sum(bwp2_p3$score) + sum(bwm2_p3$score)) / (sum(width(bwp2_p3)) + sum(width(bwm2_p3)))
+  
+  alpha_1 <- rc1$sb1 / (rc1$gb_length * lambda_1)
+  beta_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$sp1 / rc1$pause_length)
+  gamma_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$st1 / tts_length)
+  
+  alpha_2 <- rc2$sb2 / (rc2$gb_length * lambda_2)
+  beta_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$sp2 / rc2$pause_length)
+  gamma_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$st2 / tts_length)
+}
 
-alpha_1 <- rc1$sb1 / (rc1$gb_length * lambda_1)
-beta_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$sp1 / rc1$pause_length)
-gamma_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$st1 / tts_length)
-
-alpha_2 <- rc2$sb2 / (rc2$gb_length * lambda_2)
-beta_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$sp2 / rc2$pause_length)
-gamma_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$st2 / tts_length)
+if (quantile_normalization) {
+  alpha_1 <- rc1$sb1 / rc1$gb_length
+  beta_1 <- (rc1$sb1 / rc1$gb_length) / (rc1$sp1 / rc1$pause_length)
+  
+  alpha_2 <- rc2$sb2 / rc2$gb_length
+  beta_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$sp2 / rc2$pause_length)
+  
+  alpha_qnorm <- normalize.quantiles(cbind(alpha_1, alpha_2))
+  alpha_1 <- alpha_qnorm[, 1]
+  alpha_2 <- alpha_qnorm[, 2]
+  
+  alpha_beta_qnorm <- normalize.quantiles(cbind(alpha_1 / beta_1, alpha_2 / beta_2))
+  beta_qnorm <- alpha_qnorm / alpha_beta_qnorm
+  
+  beta_1 <- beta_qnorm[, 1]
+  beta_2 <- beta_qnorm[, 2]
+  pause_density_1 <- alpha_beta_qnorm[, 1]
+  pause_density_2 <- alpha_beta_qnorm[, 2]
+  
+  # get read counts back after normalization
+  rc1$sb1 <- alpha_1 * rc1$gb_length
+  rc2$sb2 <- alpha_2 * rc2$gb_length
+  rc1$sp1 <- pause_density_1 * rc1$pause_length
+  rc2$sp2 <- pause_density_2 * rc2$pause_length
+  
+  # set lamda1 and lamda2 the same
+  lambda_1 <- 1
+  lambda_2 <- 1
+}
 
 #### Poisson-based Likelihood Ratio Tests ####
 ## LRT for alpha ##

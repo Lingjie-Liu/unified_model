@@ -22,6 +22,7 @@ dependencies:
 - r-data.table
 - r-devtools
 - r-ggthemes
+- r-microbenchmark
 - r-reshape2
 - r-tidyverse
 - r-tseries
