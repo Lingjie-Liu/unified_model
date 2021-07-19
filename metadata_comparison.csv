@@ -1,0 +1,5 @@
+assay_type_1,biosample_species_1,biosample_type_1,assay_type_2,biosample_species_2,biosample_type_2
+PROseq,HUMAN,CD4,PROseq,RHESUS,CD4
+PROseq,HUMAN,CD14,PROseq,RHESUS,CD14
+PROseq,HUMAN,CD4,PROseq,HUMAN,CD14
+PROseq,RHESUS,CD4,PROseq,RHESUS,CD14

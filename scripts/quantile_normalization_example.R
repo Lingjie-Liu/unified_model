@@ -234,7 +234,7 @@ summaryRprof()$by.total
 
 # some issues in multi-threading, reinstall the package with disabling it
 # https://stackoverflow.com/questions/61629861/error-return-code-from-pthread-create-is-22
-BiocManager::install("preprocessCore", configure.args="--disable-threading", force = TRUE)
+# BiocManager::install("preprocessCore", configure.args="--disable-threading", force = TRUE)
 library(preprocessCore)
 normalize.quantiles(g10000)
 

@@ -11,46 +11,72 @@ library(preprocessCore)
 
 #### snakemake files ####
 tq_in <- snakemake@input[["tq"]]
-texp_in <- snakemake@input[["texp"]]
+tid1_in <- snakemake@input[["tid1"]]
+tid2_in <- snakemake@input[["tid2"]]
 
-texp_cutoff <- snakemake@params[["texp_cutoff"]]
-tid_cutoff <- snakemake@params[["tid_cutoff"]]
+bwp1_p5_in <- snakemake@input[["bwp1_p5"]]
+bwm1_p5_in <- snakemake@input[["bwm1_p5"]]
+bwp1_p3_in <- snakemake@input[["bwp1_p3"]]
+bwm1_p3_in <- snakemake@input[["bwm1_p3"]]
 
-tid_out <- snakemake@output[["tid"]]
+bwp2_p5_in <- snakemake@input[["bwp2_p5"]]
+bwm2_p5_in <- snakemake@input[["bwm2_p5"]]
+bwp2_p3_in <- snakemake@input[["bwp2_p3"]]
+bwm2_p3_in <- snakemake@input[["bwm2_p3"]]
+
+tid_cutoff <- snakemake@params[["tid_cutoff"]] # length cutoff for how long a TID containing multiple TSSs could span
+tsn_cutoff <- snakemake@params[["tsn_cutoff"]]
+pause_cutoff <- snakemake@params[["pause_cutoff"]] 
+gb_min_length <- snakemake@params[["gb_min_length"]] 
+tts_length <- snakemake@params[["tts_length"]] # parameter m
+quantile_normalization <- snakemake@params[["quantile_normalization"]] # "identity", "qnorm"
+
+result_dir <- snakemake@params[["result_dir"]] 
+
+alpha_out <- snakemake@output[["alpha"]] 
+beta_out <- snakemake@output[["beta"]] 
 
 #### testing files ####
-root_dir <- "~/Desktop/github/unified_model"
-
-tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
-tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
-tid2_in <- file.path(root_dir, "results/tidgrng/PROseq-RHESUS-CD4-26.RDS")
-
-bwp1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
-bwm1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
-bwp1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
-bwm1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
-
-bwp2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
-bwm2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
-bwp2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
-bwm2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
-
-tid_cutoff <- 1000 # length cutoff for how long a TID containing multiple TSSs could span
-tsn_cutoff <- 5
-pause_cutoff <- 250
-
-quantile_normalization <- TRUE 
-
-# gb_start <- 2000
-# gb_length <- 6000 # parameter l
-
-gb_min_length <- 1e4
-tts_length <- pause_cutoff # parameter m
-
-result_dir <- file.path(root_dir, "results/between_samples", "CD4")
-dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
+# root_dir <- "~/Desktop/github/unified_model"
+# 
+# tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
+# tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
+# tid2_in <- file.path(root_dir, "results/tidgrng/PROseq-RHESUS-CD4-26.RDS")
+# 
+# bwp1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
+# bwm1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
+# bwp1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
+# bwm1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
+# 
+# bwp2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
+# bwm2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
+# bwp2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
+# bwm2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
+# 
+# tid_cutoff <- 1000 # length cutoff for how long a TID containing multiple TSSs could span
+# tsn_cutoff <- 5
+# pause_cutoff <- 250
+# 
+# quantile_normalization <- "qnorm" 
+# 
+# # gb_start <- 2000
+# # gb_length <- 6000 # parameter l
+# 
+# gb_min_length <- 1e4
+# tts_length <- pause_cutoff # parameter m
+# 
+# result_dir <-
+#   file.path(root_dir, "results/between_samples",
+#             paste0("HUMAN-CD4", "_vs_", "RHESUS-CD4"))
+# dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
+# 
+# alpha_out <- file.path(result_dir, "alpha.csv")
+# beta_out <- file.path(result_dir, "beta.csv")
 
 #### end of parsing arguments ####
+
+dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
+
 #### generate regions for read counting ####
 # get union TSS regions for two samples
 tid1 <- readRDS(tid1_in)
@@ -266,7 +292,7 @@ rc2 <- Reduce(function(x, y) merge(x, y, by = "gene_id", all = TRUE),
 # lambda_2 <- sum(rc2$sb2, na.rm = TRUE) / (sum(!is.na(rc2$sb2)) * gb_length)
 
 # Use all loci
-if (!quantile_normalization) {
+if (quantile_normalization == "identity") {
   lambda_1 <- (sum(bwp1_p3$score) + sum(bwm1_p3$score)) / (sum(width(bwp1_p3)) + sum(width(bwm1_p3)))
   lambda_2 <- (sum(bwp2_p3$score) + sum(bwm2_p3$score)) / (sum(width(bwp2_p3)) + sum(width(bwm2_p3)))
   
@@ -279,7 +305,7 @@ if (!quantile_normalization) {
   gamma_2 <- (rc2$sb2 / rc2$gb_length) / (rc2$st2 / tts_length)
 }
 
-if (quantile_normalization) {
+if (quantile_normalization == "qnorm") {
   gb_density_1 <- rc1$sb1 / rc1$gb_length
   gb_density_2 <- rc2$sb2 / rc2$gb_length
   
@@ -343,7 +369,7 @@ alpha_lrt <- alpha_lrt_stat %>%
          lfc = log2(alpha_1 / alpha_2)) %>%
   select(gene_id, alpha_1, alpha_2, lfc, t, p, q)
 
-write_csv(alpha_lrt, file = file.path(result_dir, "alpha.csv"))
+write_csv(alpha_lrt, file = alpha_out)
 
 ## LRT for beta ##
 # get read counts
@@ -381,7 +407,7 @@ beta_lrt <- beta_lrt_stat %>%
          lfc = log2(beta_1 / beta_2)) %>%
   select(gene_id, beta_1, beta_2, lfc, t, p, q)
 
-write_csv(beta_lrt, file = file.path(result_dir, "beta.csv"))
+write_csv(beta_lrt, file = beta_out)
 
 #### visualize results ####
 violion_plot <- function(df) {
