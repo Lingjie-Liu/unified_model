@@ -74,6 +74,10 @@ beta_out <- snakemake@output[["beta"]]
 # beta_out <- file.path(result_dir, "beta.csv")
 
 #### end of parsing arguments ####
+dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
+
+#### functions ####
+# quantile normalization 
 normalize.quantiles <-
   function(x) {
     ## validate inputs
@@ -96,11 +100,8 @@ normalize.quantiles <-
     
     ## propagate dimnames
     dimnames(result) <- dimnames(x)
-    result
+    return(result)
   }
-
-
-dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
 
 #### generate regions for read counting ####
 # get union TSS regions for two samples
