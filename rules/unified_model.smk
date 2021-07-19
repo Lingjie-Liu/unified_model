@@ -34,7 +34,7 @@ rule analyze_two_samples:
         gb_min_length = 1e4,
         tts_length = 250, # parameter m
         quantile_normalization = "{normalization}", # "identity", "qnorm"
-        result_dir = os.path.join("results/between_samples", ind1_wildcard + "_vs_" + ind2_wildcard)
+        result_dir = os.path.join("results/between_samples", ind1_wildcard + "_vs_" + ind2_wildcard, "S{scheme}-{normalization}")
     log:
         os.path.join("logs/analyze_two_samples", ind1_wildcard + "_vs_" + ind2_wildcard, "S{scheme}-{normalization}.log")
     output:

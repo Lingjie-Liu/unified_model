@@ -371,6 +371,9 @@ alpha_lrt <- alpha_lrt_stat %>%
 
 write_csv(alpha_lrt, file = alpha_out)
 
+message("Number of genes with q values lower than cutoff for alpha:")
+alpha_lrt %>% count(q < 0.05) %>% print()
+
 ## LRT for beta ##
 # get read counts
 beta_lrt_stat <-
@@ -408,6 +411,9 @@ beta_lrt <- beta_lrt_stat %>%
   select(gene_id, beta_1, beta_2, lfc, t, p, q)
 
 write_csv(beta_lrt, file = beta_out)
+
+message("Number of genes with q values lower than cutoff for beta:")
+beta_lrt %>% count(q < 0.05) %>% print()
 
 #### visualize results ####
 violion_plot <- function(df) {
