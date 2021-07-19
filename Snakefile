@@ -34,7 +34,7 @@ ind2_wildcard = "{assay_type_2}-{biosample_species_2}-{biosample_type_2}"
 rule all:
     input:
         expand(os.path.join("results/tidgrng", expand_combine_wildcard + "-{scheme}.RDS"), df = metadata.itertuples(), scheme = 26),
-        expand(os.path.join("results/between_samples", "{df.assay_type_1}-{df.biosample_species_1}-{df.biosample_type_1}" + "_vs_" + "{df.assay_type_2}-{df.biosample_species_2}-{df.biosample_type_2}", "S{scheme}-{normalization}", "alpha.csv"), df = metadata_comparison, scheme = 26, normalization = ["identity", "qnorm"])
+        expand(os.path.join("results/between_samples", "{df.assay_type_1}-{df.biosample_species_1}-{df.biosample_type_1}" + "_vs_" + "{df.assay_type_2}-{df.biosample_species_2}-{df.biosample_type_2}", "S{scheme}-{normalization}", "alpha.csv"), df = metadata_comparison.itertuples(), scheme = 26, normalization = ["identity", "qnorm"])
 
 #### load rules ####
 include: "rules/unified_model.smk"
