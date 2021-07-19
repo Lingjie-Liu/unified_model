@@ -19,14 +19,14 @@ rule analyze_two_samples:
         tq = os.path.join(crana_dir, "results/denr/combine/tq/human_rhesus", "template-{scheme}.RDS"),
         tid1 = os.path.join("results/tidgrng", ind1_wildcard + "-{scheme}.RDS"),
         tid2 = os.path.join("results/tidgrng", ind2_wildcard + "-{scheme}.RDS"),
-        bwp1_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind1_wildcard + "_plus.bw",
-        bwm1_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind1_wildcard + "_minus.bw",
-        bwp1_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind1_wildcard + "_plus.bw",
-        bwm1_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind1_wildcard + "_minus.bw",
-        bwp2_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind2_wildcard + "_plus.bw",
-        bwm2_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind2_wildcard + "_minus.bw",
-        bwp2_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind2_wildcard + "_plus.bw",
-        bwm2_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind2_wildcard + "_minus.bw"
+        bwp1_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind1_wildcard + "_plus.bw"),
+        bwm1_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind1_wildcard + "_minus.bw"),
+        bwp1_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind1_wildcard + "_plus.bw"),
+        bwm1_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind1_wildcard + "_minus.bw"),
+        bwp2_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind2_wildcard + "_plus.bw"),
+        bwm2_p5 = os.path.join(crana_dir, "results/denr/combine/bigwig/p5/human_rhesus", ind2_wildcard + "_minus.bw"),
+        bwp2_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind2_wildcard + "_plus.bw"),
+        bwm2_p3 = os.path.join(crana_dir, "results/denr/combine/bigwig/p3/human_rhesus", ind2_wildcard + "_minus.bw")
     params:
         tid_cutoff = 1000, # length cutoff for how long a TID containing multiple TSSs could span
         tsn_cutoff = 5, # cutoff of minimum number of reads for a TSN
