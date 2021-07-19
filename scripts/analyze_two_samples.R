@@ -7,7 +7,7 @@ sink(file = log, type = "message")
 library(tidyverse)
 library(GenomicRanges)
 library(rtracklayer)
-library(preprocessCore)
+# library(preprocessCore)
 
 #### snakemake files ####
 tq_in <- snakemake@input[["tq"]]
@@ -74,6 +74,31 @@ beta_out <- snakemake@output[["beta"]]
 # beta_out <- file.path(result_dir, "beta.csv")
 
 #### end of parsing arguments ####
+normalize.quantiles <-
+  function(x) {
+    ## validate inputs
+    x <- as.matrix(x)
+    stopifnot(
+      is.numeric(x),
+      !anyNA(x)
+    )
+    
+    ## quantile normalize
+    m <- apply(x, 2, function(v) v[order(v)])
+    dim(m) <- dim(x)    # apply() doesn't always return a matrix!
+    
+    row_mean <- rowMeans(m)
+    
+    result <- apply(
+      x, 2, function(v, row_mean) row_mean[order(order(v))], row_mean
+    )
+    dim(result) <- dim(x)
+    
+    ## propagate dimnames
+    dimnames(result) <- dimnames(x)
+    result
+  }
+
 
 dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
 
