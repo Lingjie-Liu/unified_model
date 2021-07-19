@@ -10,9 +10,10 @@ Rprof.out
 *.bw
 *.pdf
 *.tsv
+
 # directories
 data/
 results/
+logs/
 
 nohup.out
-
