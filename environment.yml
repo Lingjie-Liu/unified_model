@@ -11,20 +11,36 @@ dependencies:
 - numpy
 - snakemake-minimal
 # R
+- bioconductor-clusterprofiler # GSEA
+- bioconductor-do.db >=2.9 # Disease Ontology annotations
 - bioconductor-genomicranges
 - bioconductor-gviz
+- bioconductor-meshes # GSEA
+- bioconductor-mesh.hsa.eg.db # Meshes GSEA
+- bioconductor-org.hs.eg.db
+- bioconductor-pathview # pathway based data integration and visualization
 - bioconductor-plyranges
-- bioconductor-preprocesscore
+- bioconductor-reactomepa # GSEA
+# - bioconductor-preprocesscore # for quantile normalization
 - bioconductor-repitools
 - bioconductor-rtracklayer
 - r-base>=4.0
 - r-cowplot
+- r-europepmc # GSEA plot
 - r-data.table
 - r-devtools
+- r-ggnewscale # GSEA plot
+- r-ggridges # GSEA plot
+- r-ggstance # GSEA plot
 - r-ggthemes
+- r-ggupset # GSEA plot
+- r-gprofiler2
 - r-microbenchmark
+- r-msigdbr # GSEA
 - r-reshape2
+- r-testthat
 - r-tidyverse
 - r-tseries
 - r-venndiagram
+- r-vroom # read and write data (like 'csv', 'tsv' and 'fwf') quickly
 - r-zoo
