@@ -30,6 +30,7 @@ dependencies:
 - r-data.table
 - r-devtools
 - r-ggnewscale # GSEA plot
+- r-ggpubr
 - r-ggridges # GSEA plot
 - r-ggstance # GSEA plot
 - r-ggthemes
