@@ -240,7 +240,7 @@ bw1_p3 <- c(bwp1_p3, bwm1_p3)
 summarise_bw <-
   function(bw, grng, col_name) {
     rc <- grng %>%
-      plyranges::group_by_overlaps(bw) %>%
+      plyranges::find_overlaps_directed(bw) %>%
       plyranges::group_by(ensembl_gene_id) %>% 
       plyranges::summarise(score = sum(score))
     colnames(rc) <- c("gene_id", col_name)
