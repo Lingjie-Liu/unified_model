@@ -19,7 +19,7 @@ down3_in = file.path(root_dir, 'data/sj/downstream_3end.Rdata')
 bw_3_in = file.path(root_dir, 'data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw.RData')
 
 # path for long gene body
-gb_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb.RData')
+gb_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb_nodreg.RData')
 
 # read in 
 up5 = readRDS(up5_in) 
@@ -105,3 +105,50 @@ p
 p = plot_sjrc(up3_rc, down3_rc)
 p
 
+
+############ test reads differences with dnase ##########
+###### check what's the rc difference upstream/downstream the sj
+dnase_in = paste0(root_dir, '/data/dnase/dnase_clean.Rdata')
+dnase = readRDS(dnase_in)
+
+chip_ingb_rc <- function(chip_gr, gb_gr, bw_p3, up, down){
+  
+  # determine the up/down pairs which are within gene bodies
+  chip_gb_pairs = findOverlapPairs(chip_gr, gb_gr)
+  chip_in_gb <- chip_gb_pairs@first %>% mutate(strand = strand(chip_gb_pairs@second))
+  
+  upstream <- chip_in_gb %>% resize(width = up, fix = "end") 
+  downstream <- chip_in_gb %>%  resize(width = down, fix = "start")
+  
+  # count pro-seq signal for upstream and downstream
+  up_bin <- getCountsByRegions(bw_p3, upstream, expand_ranges = T, field = "score")
+  down_bin <- getCountsByRegions(bw_p3, downstream, expand_ranges = T, field = "score")
+  
+  out = list(uprc = up_bin, downrc = down_bin)
+  return(out)
+}
+
+plot_updown_rc <- function(ft_rc_list){
+  data = tibble(up = ft_rc_list$uprc, down = ft_rc_list$downrc) 
+  data <- data %>% filter(up >0 | down>0)
+  
+  p = ggplot(data, aes(x=up, y=down) ) + 
+    ylim(0,100)+
+    xlim(0,100)+
+    geom_bin2d(bins = 150) +
+    scale_fill_continuous(type = "viridis") + theme_bw()+ geom_abline(slope = 1)
+
+  return(p)
+  
+}
+
+dnase_rc = chip_ingb_rc(dnase, gb, bw_3, 250, 250)
+plot_updown_rc(dnase_rc)
+
+
+### process ctcf data
+ctcf_in = paste0(root_dir, '/data/chip/ctcf_chip_clean.Rdata')
+ctcf = readRDS(ctcf_in)
+
+ctcf_rc = chip_ingb_rc(ctcf, gb, bw_3, 250, 250)
+plot_updown_rc(ctcf_rc)

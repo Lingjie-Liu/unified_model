@@ -1,4 +1,3 @@
-library(rtracklayer)
 library(tidyverse)
 library(dplyr)
 library(plyranges)
@@ -31,15 +30,6 @@ saveRDS(atac_bw, atac_bw_out)
 seqlevelsStyle(atac_bw) <- 'NCBI'
 
 ### dnase
-raw_dnase_in = paste0(root_dir, '/data/dnase/k562_dnase_narrowPeak.bed')
-raw_dnase = genomation::readNarrowPeak(raw_dnase_in)
-seqlevelsStyle(raw_dnase) <- 'NCBI'
-dnase_in_gb <- raw_dnase %>%
-  plyranges::find_overlaps_directed(gb) %>%  unique
-dnase_in_gb %>% width %>% summary
-dnase.peaks = resize(dnase_in_gb, width = 2000, fix = "center")
-
-# use the most strong point 
 dnase_in = paste0(root_dir, '/data/dnase/dnase_clean.Rdata')
 dnase = readRDS(dnase_in)
 dnase_in_gb <- dnase %>%
@@ -57,22 +47,6 @@ mnase_peaks <- mnase_in_gb %>% plyranges::reduce_ranges_directed(score = sum(sco
 mnase_peaks <- mnase_peaks %>% filter(width > 200 & score > 50)
 mnase.peaks = resize(mnase_peaks, width = 2000, fix = "center")
 
-
-### chip
-raw_chip_in = paste0(root_dir, '/data/chip/ctcf_chip_narrowPeak.bed')
-raw_chip = genomation::readNarrowPeak(raw_chip_in)
-seqlevelsStyle(raw_chip) <- 'NCBI'
-chip_in_gb <- raw_chip %>%
-  plyranges::find_overlaps_directed(gb) %>% unique
-chip_in_gb %>% width %>% summary
-chip.peaks = resize(chip_in_gb, width = 2000, fix = "center") %>% unique
-
-ctcf_in = paste0(root_dir, '/data/chip/ctcf_chip_clean.Rdata')
-ctcf = readRDS(ctcf_in)
-ctcf_gb_pairs = findOverlapPairs(ctcf, gb)
-ctcf_in_gb <- ctcf_gb_pairs@first %>% mutate(strand = strand(ctcf_gb_pairs@second))
-ctcf.same.peaks = resize(ctcf_in_gb, width = 1000, fix = "center") %>% unique
-ctcf.opposite.peaks = ctcf.same.peaks %>% GenomicRanges::invertStrand()
 
 ### splicing junction
 raw_sj_in = paste0(root_dir, '/data/sj/final_SJ.tab')
@@ -134,9 +108,72 @@ test = ScoreMatrixBin(target = bwrpkm_p3, windows = ctcf.opposite.peaks, weight.
                bin.num = 100, strand.aware = T)
 test@.Data[1:10, 1]
 
+####
 library(BRGenomics)
-same_pr_bin <- getCountsByPositions(bwrpkm_p3, ctcf.same.peaks, binsize = 10,
-                                    expand_ranges = T, field = "rpkm")
-opposite_pr_bin <- getCountsByPositions(bwrpkm_p3, ctcf.opposite.peaks, binsize = 10,
-                                    expand_ranges = T, field = "rpkm")
+library(data.table)
+library(ggplot2)
 
+process_chiplike <- function(chip_gr, gb_gr, bw_p3, peak_width, bin_size){
+  # determine the strand specific region 
+  chip_gb_pairs = findOverlapPairs(chip_gr, gb_gr)
+  chip_in_gb <- chip_gb_pairs@first %>% mutate(strand = strand(chip_gb_pairs@second))
+  
+  # plus.peaks <- chip_in_gb %>% filter(strand == "+") %>% 
+  #   resize(width = peak_width, fix = "center") 
+  # minus.peaks <- chip_in_gb %>% filter(strand == "-") %>% 
+  #   resize(width = peak_width, fix = "center")
+
+  peaks <- chip_in_gb %>% resize(width = peak_width, fix = "center")
+  
+  # count pro-seq signal for both strand
+  # plus_stnd_bin <- getCountsByPositions(bw_p3, plus.peaks, binsize = bin_size,
+  #                                       expand_ranges = T, field = "score")
+  # 
+  # 
+  # minus_stnd_bin <- getCountsByPositions(bw_p3, minus.peaks, binsize = bin_size,
+  #                                       expand_ranges = T, field = "score")
+  bin_rc = getCountsByPositions(bw_p3, peaks, binsize = bin_size,
+                                expand_ranges = T, field = "score")
+  # prepare data for plot
+  
+  x_cor = seq(-1*(peak_width/2-bin_size),peak_width/2, bin_size)
+  # data <- data.table(position = rep(x_cor, 2),
+  #                    mean_score = c(colMeans(plus_stnd_bin)/bin_size,
+  #                                   colMeans(minus_stnd_bin)/bin_size), # NO NEED TO REVERSE THE MINUS STRAND VECTORS!
+  #                    type = c(rep('plus_strand', ncol(plus_stnd_bin)),
+  #                             rep('minus_strand', ncol(minus_stnd_bin))))
+  
+  data <- data.table(position = x_cor,
+                     mean_score = colMeans(bin_rc)/bin_size) # NO NEED TO REVERSE THE MINUS STRAND VECTORS!
+    
+  return(data)
+}
+
+### process ctcf data
+ctcf_in = paste0(root_dir, '/data/chip/ctcf_chip_clean.Rdata')
+ctcf = readRDS(ctcf_in)
+data = process_chiplike(ctcf, gb, bw_p3, 1000, 10)
+
+### process DNase data
+dnase_in = paste0(root_dir, '/data/dnase/dnase_clean.Rdata')
+dnase = readRDS(dnase_in)
+data = process_chiplike(dnase, gb, bw_p3, 1000, 10)
+
+### process MNase data
+raw_mnase_in = file.path(root_dir, 'data/mnase/hg38_k562_mnase_ingb.RData')
+raw_mnase = readRDS(raw_mnase_in)
+mnase <- raw_mnase %>%
+  plyranges::reduce_ranges_directed(score = sum(score)) %>% 
+  filter(width <1000 & score > 30)
+
+mnase$score %>% summary
+width(mnase) %>% summary
+
+data = process_chiplike(mnase, gb, bw_p3, 1000, 10)
+
+### plot chip-like data
+ggplot(data, aes(position, mean_score)) + 
+  geom_line(size = 1) + 
+  labs(x = "Distance to CTCF summit (bp)", 
+       y = "Mean PRO-seq Signal") + 
+  theme_bw()
