@@ -19,7 +19,7 @@ tid_cutoff <- snakemake@params[["tid_cutoff"]]
 tid_out <- snakemake@output[["tid"]]
 
 #### testing files ####
-root_dir <- "~/github/unified_model"
+root_dir <- "~/Desktop/github/unified_model"
 
 tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
 
@@ -31,7 +31,11 @@ bwm2_p3_in <- file.path(root_dir, "data/bwrpm/p3/human_rhesus/PROseq-RHESUS-CD4_
 
 helper <- file.path(root_dir, "scripts/visualize_two_samples_helper.R")
 
-result_dir <- file.path(root_dir, "results/between_samples", "CD4")
+result_dir <-
+  file.path(root_dir, "results/between_samples",
+            paste0("PROseq-HUMAN-CD4", "_vs_", "PROseq-RHESUS-CD4"),
+            "S26-identity")
+
 fig_dir <- file.path(result_dir, "gviz")
 
 walk(c(result_dir, fig_dir, file.path(fig_dir, "alpha"), file.path(fig_dir, "beta")),
