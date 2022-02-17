@@ -19,20 +19,14 @@ gene_rc <- gb %>% group_by(ensembl_gene_id) %>% summarize(score = sum(score))
 gene_length <- gb %>% group_by(ensembl_gene_id) %>% summarize(bin_num = n())
 lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
 
-TBj <- 
-  gb_demo %>% mutate(wgbs = wgbs*score, ctcf = ctcf*score, histone = histone*score, 
-                     up5 = up5*score, down5 = down5*score, 
-                     up3 = up3*score,down3 = down3*score,
-                     gc = gc*score, tx_length = tx_length*score,
-                     exon_density = exon_density*score, 
-                     first_intron_length = first_intron_length*score,
-                     low_complex = low_complex*score) %>%
+# calculate TBj
+TBj <- gb_demo %>% 
+  select(7: last_col()) %>% 
+  mutate_each(funs(.*gb_demo$score)) %>% 
+  add_column(ensembl_gene_id = gb_demo$ensembl_gene_id) %>% 
   group_by(ensembl_gene_id) %>%
-  summarise(wgbs = sum(wgbs), ctcf = sum(ctcf), histone = sum(histone), up5 = sum(up5), 
-            down5 = sum(down5), up3 = sum(up3), down3 = sum(down3), gc = sum(gc),
-            tx_length = sum(tx_length), exon_density = sum(exon_density),
-            first_intron_length = sum(first_intron_length), low_complex = sum(low_complex))
-TBj
+  summarise(across(where(is.numeric), sum))
+
 
 #  calculate SBj
 SBj <- gb_demo %>% group_by(ensembl_gene_id) %>% summarize(score = sum(score))
@@ -41,9 +35,7 @@ SBj
 ### update each iteration : UBj, alphaj and VBj 
 # calculate UBj
 calculate_UBj <- function(k, gb_demo){
-  Yji <- gb_demo %>% dplyr::select(wgbs, ctcf, histone, up5, down5, up3, down3, 
-                                   gc, tx_length, exon_density,
-                                   first_intron_length, low_complex)  
+  Yji <- gb_demo %>% dplyr::select(score:last_col(), -score)
   power <- Yji %>% apply(1, crossprod, k)
   gene_power <- tibble(ensembl_gene_id = gb_demo$ensembl_gene_id, 
                        power = power*(-1))
@@ -65,25 +57,15 @@ calculate_alphaj <- function(lambda, SBj, UBj){
 
 # calculate VBj
 calculate_VBj <- function(k, gb_demo){
-  Yji <- gb_demo %>% dplyr::select(wgbs, ctcf, histone, up5, down5, up3, down3, 
-                                   gc, tx_length, exon_density,
-                                   first_intron_length, low_complex)
+  Yji <- gb_demo %>% dplyr::select(score:last_col(), -score)
   power <- Yji %>% apply(1, crossprod, k)
   power <- exp(power*(-1))
   
-  VBj <- Yji %>% mutate(ensembl_gene_id = gb_demo$ensembl_gene_id,
-                        wgbs = wgbs*power, ctcf = ctcf*power, histone = histone*power, 
-                        up5 = up5*power, down5 = down5*power, 
-                        up3 = up3*power,down3 = down3*power,
-                        gc = gc*power, tx_length = tx_length*power,
-                        exon_density = exon_density*power, 
-                        first_intron_length = first_intron_length*power,
-                        low_complex = low_complex*power) %>%
-    group_by(ensembl_gene_id) %>% 
-    summarise(wgbs = sum(wgbs), ctcf = sum(ctcf), histone = sum(histone), up5 = sum(up5), 
-              down5 = sum(down5), up3 = sum(up3), down3 = sum(down3), gc = sum(gc),
-              tx_length = sum(tx_length), exon_density = sum(exon_density),
-              first_intron_length = sum(first_intron_length), low_complex = sum(low_complex))
+  VBj <- Yji %>% 
+    mutate_each(funs(.*power)) %>% 
+    add_column(ensembl_gene_id = gb_demo$ensembl_gene_id) %>% 
+    group_by(ensembl_gene_id) %>%
+    summarise(across(where(is.numeric), sum))
   
   return(VBj)
 }
@@ -92,9 +74,7 @@ calculate_VBj <- function(k, gb_demo){
 calculate_likelihood <- function(SBj, k, TBj, UBj){
   item1 <- (-1)*SBj$score*log(UBj$sum_exp_power)
   
-  Yji <- TBj %>% dplyr::select(wgbs, ctcf, histone, up5, down5, up3, down3, 
-                               gc, tx_length, exon_density,
-                               first_intron_length, low_complex) 
+  Yji <- TBj %>% dplyr::select(2:last_col()) 
   item2 <- Yji %>% apply(1, crossprod, k) 
   
   likelihood <- sum(item1-item2)
@@ -104,14 +84,10 @@ calculate_likelihood <- function(SBj, k, TBj, UBj){
 
 # calculate gradient 
 calculate_gradient <- function(lambda, alphaj, VBj, TBj){
-  VBj_number <- VBj %>% dplyr::select(wgbs, ctcf, histone, up5, down5, up3, down3, 
-                                      gc, tx_length, exon_density,
-                                      first_intron_length, low_complex)
+  VBj_number <- VBj %>% dplyr::select(2:last_col())
   item1 <- lambda*alphaj$alpha*VBj_number 
   
-  TBj_number <- TBj %>% dplyr::select(wgbs, ctcf, histone, up5, down5, up3, down3, 
-                                      gc, tx_length, exon_density,
-                                      first_intron_length, low_complex)
+  TBj_number <- TBj %>% dplyr::select(2:last_col())
   
   gradient <- colSums(item1 - TBj_number) 
   
@@ -123,7 +99,7 @@ calculate_gradient <- function(lambda, alphaj, VBj, TBj){
 ################ demo GA
 
 ##### initialize all values
-k = rep(0,12)
+k = rep(12,12)
 
 UBj = calculate_UBj(k, gb_demo)
 
