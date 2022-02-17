@@ -10,6 +10,9 @@ root_dir = '/Users/ling/unified_model'
 gb_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb.RData')
 bw_in = file.path(root_dir, 'data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw.RData')
 
+# output path of loess corrected rc for following analysis
+corrected_rc_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_loess_gb.RData')
+
 # read in gb file
 gb = readRDS(gb_in)
 bw = readRDS(bw_in)
@@ -179,10 +182,12 @@ get_newrc <- function(pre_profile, raw_rc){
     if(unique(x$strand) == '+'){
       # get the corrected rc with loess function
       x$loess_score = x$score/pre_profile[lookup_ind]
+      x$scale_constant = pre_profile[lookup_ind]
     }
     else if(unique(x$strand) == '-'){
       # reverse the lookup index because of minus strands
       x$loess_score = x$score/pre_profile[rev(lookup_ind)]
+      x$scale_constant = pre_profile[rev(lookup_ind)]
     }
     return(x)
   })
@@ -190,6 +195,10 @@ get_newrc <- function(pre_profile, raw_rc){
 }
 
 new_rcList = get_newrc(pre_profile, raw_rc)
+#new_rcList[[1]]
+#### save loess corrected read counts for following analysis
+corrected_rc_tosave = new_rcList %>% bind_rows() %>% select(-score)
+saveRDS(corrected_rc_tosave, corrected_rc_out)
 
 
 ###### sampling and visualize the effect of loess prediction ##########
