@@ -7,6 +7,9 @@ sink(file = log, type = "message")
 library(tidyverse)
 library(GenomicRanges)
 library(rtracklayer)
+library(ggpubr)
+library(ggpointdensity)
+
 # library(preprocessCore)
 
 #### snakemake files ####
@@ -37,41 +40,43 @@ alpha_out <- snakemake@output[["alpha"]]
 beta_out <- snakemake@output[["beta"]] 
 
 #### testing files ####
-# root_dir <- "~/Desktop/github/unified_model"
-# 
-# tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
-# tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
-# tid2_in <- file.path(root_dir, "results/tidgrng/PROseq-RHESUS-CD4-26.RDS")
-# 
-# bwp1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
-# bwm1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
-# bwp1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
-# bwm1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
-# 
-# bwp2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
-# bwm2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
-# bwp2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
-# bwm2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
-# 
-# tid_cutoff <- 1000 # length cutoff for how long a TID containing multiple TSSs could span
-# tsn_cutoff <- 5
-# pause_cutoff <- 250
-# 
-# quantile_normalization <- "qnorm" 
-# 
-# # gb_start <- 2000
-# # gb_length <- 6000 # parameter l
-# 
-# gb_min_length <- 1e4
-# tts_length <- pause_cutoff # parameter m
-# 
-# result_dir <-
-#   file.path(root_dir, "results/between_samples",
-#             paste0("HUMAN-CD4", "_vs_", "RHESUS-CD4"))
-# dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
-# 
-# alpha_out <- file.path(result_dir, "alpha.csv")
-# beta_out <- file.path(result_dir, "beta.csv")
+root_dir <- "~/Desktop/github/unified_model"
+
+tq_in <- file.path(root_dir, "data/tq/human_rhesus/template-26.RDS")
+tid1_in <- file.path(root_dir, "results/tidgrng/PROseq-HUMAN-CD4-26.RDS")
+tid2_in <- file.path(root_dir, "results/tidgrng/PROseq-RHESUS-CD4-26.RDS")
+
+bwp1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
+bwm1_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
+bwp1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_plus.bw")
+bwm1_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-HUMAN-CD4_minus.bw")
+
+bwp2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
+bwm2_p5_in <- file.path(root_dir, "data/bigwig/p5/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
+bwp2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_plus.bw")
+bwm2_p3_in <- file.path(root_dir, "data/bigwig/p3/human_rhesus/PROseq-RHESUS-CD4_minus.bw")
+
+tid_cutoff <- 1000 # length cutoff for how long a TID containing multiple TSSs could span
+tsn_cutoff <- 5
+pause_cutoff <- 250
+
+quantile_normalization <- "qnorm"
+scheme <- 26
+
+# gb_start <- 2000
+# gb_length <- 6000 # parameter l
+
+gb_min_length <- 1e4
+tts_length <- pause_cutoff # parameter m
+
+result_dir <-
+  file.path(root_dir, "results/between_samples",
+            paste0("PROseq-HUMAN-CD4", "_vs_", "PROseq-RHESUS-CD4"),
+            paste0("S", scheme, "-", quantile_normalization))
+dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
+
+alpha_out <- file.path(result_dir, "alpha.csv")
+beta_out <- file.path(result_dir, "beta.csv")
 
 #### end of parsing arguments ####
 dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
@@ -445,29 +450,56 @@ message("Number of genes with q values lower than cutoff for beta:")
 beta_lrt %>% count(q < 0.05) %>% print()
 
 #### visualize results ####
-violion_plot <- function(df) {
-  df %>% na.omit() %>%
-    ggplot(aes(x = name, y = log2(value))) +
-    geom_violin() +
-    geom_boxplot(width = 0.1) +
-    labs(x = "") +
-    cowplot::theme_cowplot()
-}
+# violin plot for rate distributions 
+# violion_plot <- function(df) {
+#   df %>% na.omit() %>%
+#     ggplot(aes(x = name, y = log2(value))) +
+#     geom_violin() +
+#     geom_boxplot(width = 0.1) +
+#     labs(x = "") +
+#     cowplot::theme_cowplot()
+# }
+# 
+# p <- alpha_lrt %>%
+#   select(contains("alpha")) %>%
+#   pivot_longer(cols = contains("alpha")) %>%
+#   violion_plot()
 
 p <- alpha_lrt %>%
   select(contains("alpha")) %>%
   pivot_longer(cols = contains("alpha")) %>%
-  violion_plot()
+  mutate(value = log2(value)) %>%
+  na.omit() %>%
+  ggviolin(x = "name", y = "value", fill = "name",
+           palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+           add = "boxplot", add.params = list(fill = "white"),
+           width = 0.9) +
+  # stat_compare_means(label.x = 1.4, label.y.npc = "top") +
+  labs(x = "", y = "log2(initiation rates)") +
+  theme(legend.position = "none") 
 
-ggsave(file.path(result_dir, "alpha_distribution.pdf"), plot = p,
+ggsave(file.path(result_dir, "alpha_distribution.png"), plot = p,
        width = 8, height = 6)
+
+# p <- beta_lrt %>%
+#   select(contains("beta")) %>%
+#   pivot_longer(cols = contains("beta")) %>%
+#   violion_plot()
 
 p <- beta_lrt %>%
   select(contains("beta")) %>%
   pivot_longer(cols = contains("beta")) %>%
-  violion_plot()
+  mutate(value = log2(value)) %>%
+  na.omit() %>%
+  ggviolin(x = "name", y = "value", fill = "name",
+           palette = c("#00AFBB", "#E7B800", "#FC4E07"),
+           add = "boxplot", add.params = list(fill = "white"),
+           width = 0.9) +
+  # stat_compare_means(label.x = 1.4, label.y.npc = "top") +
+  labs(x = "", y = "log2(pause release rates)") +
+  theme(legend.position = "none") 
 
-ggsave(file.path(result_dir, "beta_distribution.pdf"), plot = p,
+ggsave(file.path(result_dir, "beta_distribution.png"), plot = p,
        width = 8, height = 6)
 
 # volcano plot
@@ -489,3 +521,49 @@ p <- volcano_plot(beta_lrt, sig_p = 0.05)
 ggsave(file.path(result_dir, "beta_lrt_volcano.pdf"), plot = p,
        width = 8, height = 6)
 
+# scatter plot
+pointdensity <- function(df, col_name_1, col_name_2, title,
+                         x_lab = "Rates", y_lab = "Rates", log_transform = TRUE) {
+  if (log_transform) {
+    df <- df %>%
+      mutate(rate_1 = log2({{col_name_1}}),
+             rate_2 = log2({{col_name_2}}))
+  } else {
+    df <- df %>%
+      mutate(rate_1 = {{col_name_1}},
+             rate_2 = {{col_name_2}})
+  }
+   df %>% 
+    ggplot(mapping = aes(x = rate_1, y = rate_2)) +
+    geom_pointdensity() +
+    viridis::scale_color_viridis(alpha = 1, direction = 1, option = "D") +
+    ggpubr::stat_cor() +
+    geom_abline(intercept = 0, slope = 1, color="grey50",
+                linetype="dashed", size = 1, alpha = 0.5) +
+    labs(title = title,
+         x = as.expression(bquote("log"[2]*"("*.(x_lab)*")")),
+         y = as.expression(bquote("log"[2]*"("*.(y_lab)*")"))) +
+    cowplot::theme_cowplot() +
+    theme(plot.title = element_text(hjust = 0.5, size = 15))
+}
+
+p <- pointdensity(alpha_lrt, alpha_1, alpha_2, "Initiation Rates")
+ggsave(file.path(result_dir, "initiation_rates.png"), plot = p,
+       width = 7, height = 6)
+
+p <- pointdensity(beta_lrt, beta_1, beta_2, "Pause Release Rates")
+ggsave(file.path(result_dir, "pause_release_rates.png"), plot = p,
+       width = 7, height = 6)
+
+rate_lrt <- alpha_lrt %>%
+  left_join(beta_lrt, by = "gene_id", suffix = c(".alpha", ".beta"))
+
+p <- pointdensity(rate_lrt, alpha_1, beta_1, "Initiation vs. Pause Release Rates (Human)")
+ggsave(file.path(result_dir, "initiation_vs_pause_release_rates_human.png"), plot = p,
+       width = 7, height = 6)
+
+p <- pointdensity(rate_lrt, alpha_2, beta_2, "Initiation vs. Pause Release Rates (Rhesus)")
+ggsave(file.path(result_dir, "initiation_vs_pause_release_rates_rhesus.png"), plot = p,
+       width = 7, height = 6)
+
+pointdensity(rate_lrt, alpha_2, beta_2, "Initiation vs. Pause Release Rates (Rhesus)")
