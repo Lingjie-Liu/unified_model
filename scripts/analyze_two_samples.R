@@ -547,23 +547,32 @@ pointdensity <- function(df, col_name_1, col_name_2, title,
     theme(plot.title = element_text(hjust = 0.5, size = 15))
 }
 
-p <- pointdensity(alpha_lrt, alpha_1, alpha_2, "Initiation Rates")
+p <- pointdensity(alpha_lrt, alpha_1, alpha_2, "Initiation Rates",
+                  x_lab = "Human CD4 Initation Rates",
+                  y_lab = "Rhesus CD4 Initation Rates")
 ggsave(file.path(result_dir, "initiation_rates.png"), plot = p,
        width = 7, height = 6)
 
-p <- pointdensity(beta_lrt, beta_1, beta_2, "Pause Release Rates")
+p <- pointdensity(beta_lrt, beta_1, beta_2, "Pause Release Rates",
+                  x_lab = "Human CD4 Pause Release Rates",
+                  y_lab = "Rhesus CD4 Pause Release Rates")
 ggsave(file.path(result_dir, "pause_release_rates.png"), plot = p,
        width = 7, height = 6)
 
 rate_lrt <- alpha_lrt %>%
-  left_join(beta_lrt, by = "gene_id", suffix = c(".alpha", ".beta"))
-
-p <- pointdensity(rate_lrt, alpha_1, beta_1, "Initiation vs. Pause Release Rates (Human)")
+  left_join(beta_lrt, by = "gene_id", suffix = c(".alpha", ".beta")) 
+  
+p <- pointdensity(rate_lrt, alpha_1, beta_1, "Initiation vs. Pause Release Rates (Human)",
+                  x_lab = "Initiation Rates", y_lab = "Pause Release Rates")
 ggsave(file.path(result_dir, "initiation_vs_pause_release_rates_human.png"), plot = p,
        width = 7, height = 6)
 
-p <- pointdensity(rate_lrt, alpha_2, beta_2, "Initiation vs. Pause Release Rates (Rhesus)")
+p <- pointdensity(rate_lrt, alpha_2, beta_2, "Initiation vs. Pause Release Rates (Rhesus)",
+                  x_lab = "Initiation Rates", y_lab = "Pause Release Rates")
 ggsave(file.path(result_dir, "initiation_vs_pause_release_rates_rhesus.png"), plot = p,
        width = 7, height = 6)
 
-pointdensity(rate_lrt, alpha_2, beta_2, "Initiation vs. Pause Release Rates (Rhesus)")
+p <-
+  pointdensity(rate_lrt, lfc.alpha, lfc.beta, "Log Fold Change (Initation vs. Pause Release)",
+             x_lab = "Fold Change in Initiation Rates",
+             y_lab = "Fold Change in Pause Release Rates", log_transform = FALSE)
