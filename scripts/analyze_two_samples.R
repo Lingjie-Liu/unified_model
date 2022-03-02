@@ -73,7 +73,6 @@ result_dir <-
   file.path(root_dir, "results/between_samples",
             paste0("PROseq-HUMAN-CD4", "_vs_", "PROseq-RHESUS-CD4"),
             paste0("S", scheme, "-", quantile_normalization))
-dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
 
 alpha_out <- file.path(result_dir, "alpha.csv")
 beta_out <- file.path(result_dir, "beta.csv")
@@ -560,7 +559,9 @@ ggsave(file.path(result_dir, "pause_release_rates.png"), plot = p,
        width = 7, height = 6)
 
 rate_lrt <- alpha_lrt %>%
-  left_join(beta_lrt, by = "gene_id", suffix = c(".alpha", ".beta")) 
+  left_join(beta_lrt, by = "gene_id", suffix = c(".alpha", ".beta")) %>%
+  mutate(t_sort.alpha = ifelse(lfc.alpha >= 0, t.alpha, -t.alpha),
+         t_sort.beta = ifelse(lfc.beta >= 0, t.beta, -t.beta)) 
   
 p <- pointdensity(rate_lrt, alpha_1, beta_1, "Initiation vs. Pause Release Rates (Human)",
                   x_lab = "Initiation Rates", y_lab = "Pause Release Rates")
@@ -576,3 +577,24 @@ p <-
   pointdensity(rate_lrt, lfc.alpha, lfc.beta, "Log Fold Change (Initation vs. Pause Release)",
              x_lab = "Fold Change in Initiation Rates",
              y_lab = "Fold Change in Pause Release Rates", log_transform = FALSE)
+
+# histogram for T stats
+beta_vline <- quantile(rate_lrt$t_sort.beta, probs = c(0.1, 0.5, 0.9))
+alpha_vline <- quantile(rate_lrt$t_sort.alpha, probs = c(0.1, 0.5, 0.9))
+
+hist_t_stats <- function(col_name, vline, xlim) {
+  rate_lrt %>% ggplot(aes(x = {{col_name}})) +
+    geom_histogram(colour="black", fill="white", bins = 50) +
+    geom_vline(xintercept = vline, linetype="dashed", color = c("red", "black", "red")) +
+    scale_x_continuous(limits = xlim) +
+    labs(x = "T-statistic", y = "Number of Genes") +
+    cowplot::theme_cowplot()
+}
+
+p <- hist_t_stats(t_sort.beta, beta_vline, c(-250, 250))
+ggsave(filename = file.path(result_dir, "t_stats_distrbution_beta.png"),
+       plot = p, width = 8, height = 4)
+
+p <- hist_t_stats(t_sort.alpha, alpha_vline, c(-2000, 2000))
+ggsave(filename = file.path(result_dir, "t_stats_distrbution_alpha.png"),
+       plot = p, width = 8, height = 4)

@@ -17,22 +17,22 @@ library(dplyr)
 #### testing files ####
 root_dir <- "~/Desktop/github/unified_model"
 
-# alpha_in <-
-#   file.path(root_dir,
-#             "results/between_samples/PROseq-HUMAN-CD4_vs_PROseq-HUMAN-CD14/S26-qnorm/alpha.csv")
-# 
-# beta_in <-
-#   file.path(root_dir,
-#             "results/between_samples/PROseq-HUMAN-CD4_vs_PROseq-HUMAN-CD14/S26-qnorm/beta.csv")
+alpha_in <-
+  file.path(root_dir,
+            "results/between_samples/PROseq-HUMAN-CD4_vs_PROseq-RHESUS-CD4/S26-qnorm/alpha.csv")
 
-rate_in <-
-  file.path(root_dir, "results/within_sample/HUMAN-CD14/rate.csv")
+beta_in <-
+  file.path(root_dir,
+            "results/between_samples/PROseq-HUMAN-CD4_vs_PROseq-RHESUS-CD4/S26-qnorm/beta.csv")
+
+# rate_in <-
+#   file.path(root_dir, "results/within_sample/HUMAN-CD14/rate.csv")
 
 #### end of parsing arguments ####
-# alpha_tbl <- read_csv(alpha_in, col_types = cols(gene_id = col_character()))
-# beta_tbl <- read_csv(beta_in, col_types = cols(gene_id = col_character()))
+alpha_tbl <- read_csv(alpha_in, col_types = cols(gene_id = col_character()))
+beta_tbl <- read_csv(beta_in, col_types = cols(gene_id = col_character()))
 
-rate_tbl <- read_csv(rate_in, col_types = cols(gene_id = col_character()))
+# rate_tbl <- read_csv(rate_in, col_types = cols(gene_id = col_character()))
 
 # rate_tbl <- rate_tbl %>%
 #   mutate(t_sort = ifelse(lfc >= 0, t, -t)) %>%
