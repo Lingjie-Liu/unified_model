@@ -34,7 +34,7 @@ helper <- file.path(root_dir, "scripts/visualize_two_samples_helper.R")
 result_dir <-
   file.path(root_dir, "results/between_samples",
             paste0("PROseq-HUMAN-CD4", "_vs_", "PROseq-RHESUS-CD4"),
-            "S26-identity")
+            "S26-qnorm")
 
 fig_dir <- file.path(result_dir, "gviz")
 
@@ -45,15 +45,22 @@ walk(c(result_dir, fig_dir, file.path(fig_dir, "alpha"), file.path(fig_dir, "bet
 source(helper)
 
 alpha_lrt <- read_csv(file.path(result_dir, "alpha.csv"))
-alpha_lrt <- alpha_lrt %>% arrange(desc(lfc))
-
 beta_lrt <- read_csv(file.path(result_dir, "beta.csv"))
-beta_lrt <- beta_lrt %>% arrange(desc(lfc))
+
+get_plot_tbl <- function(df) {
+  df %>%
+    mutate(t_sort = ifelse(lfc >= 0, t, -t)) %>%
+    arrange(desc(t_sort)) %>%
+    filter(abs(lfc) > 2)
+}
+
+alpha_plot <- get_plot_tbl(alpha_lrt) 
+beta_plot <- get_plot_tbl(beta_lrt) 
 
 tq <- readRDS(tq_in)
 count_grng <- readRDS(file = file.path(result_dir, "granges_for_read_counting.RDS"))
 
-for (gene_name in alpha_lrt$gene_id[1:200]) {
+for (gene_name in alpha_plot$gene_id) {
     file_name <- paste0(file.path(fig_dir, "alpha", gene_name), ".png")
     # file_name <- paste0(file.path(fig_out_dir, "altPmt_btw_cell", gene_name), ".pdf")
     print(file_name)
@@ -71,7 +78,7 @@ for (gene_name in alpha_lrt$gene_id[1:200]) {
     invisible(dev.off())
 }
 
-for (gene_name in beta_lrt$gene_id[1:200]) {
+for (gene_name in beta_plot$gene_id) {
     file_name <- paste0(file.path(fig_dir, "beta", gene_name), ".png")
     # file_name <- paste0(file.path(fig_out_dir, "altPmt_btw_cell", gene_name), ".pdf")
     print(file_name)
