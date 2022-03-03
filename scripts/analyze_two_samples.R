@@ -598,3 +598,19 @@ ggsave(filename = file.path(result_dir, "t_stats_distrbution_beta.png"),
 p <- hist_t_stats(t_sort.alpha, alpha_vline, c(-2000, 2000))
 ggsave(filename = file.path(result_dir, "t_stats_distrbution_alpha.png"),
        plot = p, width = 8, height = 4)
+
+# Overlap of top and bottom 10% of genes
+rate_lrt <- rate_lrt %>%
+  mutate(cat.alpha = case_when(t_sort.alpha < alpha_vline[1] ~ "init.down",
+                               t_sort.alpha > alpha_vline[3] ~ "init.up",
+                               TRUE ~ "others"),
+         cat.beta = case_when(t_sort.beta < beta_vline[1] ~ "pause.down",
+                              t_sort.beta > beta_vline[3] ~ "pause.up",
+                              TRUE ~ "others"))
+
+message("Overlap of genes with top and bottom 10% T stats:")
+table(rate_lrt$cat.alpha, rate_lrt$cat.beta)
+
+message("Fisher's Exact Test:")
+fisher.test(table(rate_lrt$cat.alpha, rate_lrt$cat.beta)[c(1,2), c(2,3)])
+
