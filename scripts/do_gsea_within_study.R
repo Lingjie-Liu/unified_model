@@ -22,30 +22,18 @@ prop <- snakemake@params[["prop"]]
 #### testing files ####
 root_dir <- "~/Desktop/github/unified_model"
 
-quantile_normalization <- "identity"
-all_loci <- "all"
-# all_loci <- "some"
-# all_loci <- "spike"
+scheme <- 26
+quantile_normalization <- "qnorm"
 
-if (quantile_normalization != "identity") all_loci <- "some"
+data_dir <-
+  file.path(root_dir, "results/between_samples",
+            paste0("PROseq-HUMAN-CD4", "_vs_", "PROseq-RHESUS-CD4"),
+            paste0("S", scheme, "-", quantile_normalization))
 
-replicates <- NULL
-# replicates <- "-replicate"
+alpha_in <- file.path(data_dir, "alpha.csv")
+beta_in <- file.path(data_dir, "beta.csv")
 
-# sel_lib <-
-#   paste0("PROseq-K562-dukler-SE", "-", quantile_normalization,
-#          "-", all_loci, replicates)
-
-sel_lib <-
-  paste0("PROseq-K562-vihervaara-SE", "-", quantile_normalization,
-         "-", all_loci, replicates)
-
-# sel_lib <- "PROseq-K562-dukler-SE-identity-some"
-# sel_lib <- "ChROseq-K562-barshad-PE-identity-some"
-
-alpha_in <- file.path(root_dir, "outputs/between_samples", sel_lib, "alpha.csv")
-beta_in <- file.path(root_dir, "outputs/between_samples", sel_lib ,"beta.csv")
-result_dir <- file.path(root_dir, "outputs/between_samples", sel_lib, "go")
+result_dir <- file.path(data_dir, "go")
 prop <- 0.1 # proportion of genes to be considered in a GSEA enrichment analysis
 
 dir.create(result_dir, showWarnings = FALSE, recursive = TRUE)
@@ -421,7 +409,7 @@ enrichGO_res <-
 p <-
   dotplot(enrichGO_res) +
   # facet_grid(~ beta) +
-  labs(x = "", title = "Rates changes after treatment (Gene Ontology)") +
+  labs(x = "", title = "Rates changes between species (Gene Ontology)") +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = file.path(result_dir, "alpha_beta_gene_ontology_dotplot.png"),
@@ -431,7 +419,7 @@ p <-
   enrichGO_res %>%
   filter(Cluster %in% c("alpha-down.beta-down", "alpha-up.beta-up")) %>%
   dotplot() +
-  labs(x = "", title = "Rates changes after treatment (Gene Ontology)") +
+  labs(x = "", title = "Rates changes between species (Gene Ontology)") +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = file.path(result_dir, "alpha_beta_gene_ontology_coherent_dotplot.png"),
@@ -451,7 +439,7 @@ enrichPathway_res <-
 p <-
   dotplot(enrichPathway_res) +
   # facet_grid(~ beta) +
-  labs(x = "", title = "Rates changes after treatment (Reactome pathway)") +
+  labs(x = "", title = "Rates changes between species (Reactome pathway)") +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = file.path(result_dir, "alpha_beta_reactome_pathway_dotplot.png"),
@@ -461,7 +449,7 @@ p <-
   enrichPathway_res %>%
   filter(Cluster %in% c("alpha-down.beta-down", "alpha-up.beta-up")) %>%
   dotplot() +
-  labs(x = "", title = "Rates changes after treatment (Reactome pathway)") +
+  labs(x = "", title = "Rates changes between species (Reactome pathway)") +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = file.path(result_dir, "alpha_beta_reactome_pathway_coherent_dotplot.png"),
