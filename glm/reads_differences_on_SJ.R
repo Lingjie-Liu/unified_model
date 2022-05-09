@@ -108,9 +108,6 @@ p
 
 ############ test reads differences with dnase ##########
 ###### check what's the rc difference upstream/downstream the sj
-dnase_in = paste0(root_dir, '/data/dnase/dnase_clean.Rdata')
-dnase = readRDS(dnase_in)
-
 chip_ingb_rc <- function(chip_gr, gb_gr, bw_p3, up, down){
   
   # determine the up/down pairs which are within gene bodies
@@ -142,6 +139,10 @@ plot_updown_rc <- function(ft_rc_list){
   
 }
 
+### process dnase data
+dnase_in = paste0(root_dir, '/data/dnase/dnase_clean.Rdata')
+dnase = readRDS(dnase_in)
+
 dnase_rc = chip_ingb_rc(dnase, gb, bw_3, 250, 250)
 plot_updown_rc(dnase_rc)
 
@@ -152,3 +153,11 @@ ctcf = readRDS(ctcf_in)
 
 ctcf_rc = chip_ingb_rc(ctcf, gb, bw_3, 250, 250)
 plot_updown_rc(ctcf_rc)
+
+### process atac data
+atac_in = paste0(root_dir, '/data/atac/atac_clean.Rdata')
+atac = readRDS(atac_in)
+
+atac_rc = chip_ingb_rc(atac, gb, bw_3, 250, 250)
+plot_updown_rc(atac_rc)
+

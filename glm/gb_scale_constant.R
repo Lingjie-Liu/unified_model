@@ -7,18 +7,18 @@ library(rtracklayer)
 root_dir = '/Users/ling/unified_model'
 
 # path of identified gene bodies and proseq file
-gb_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb.RData')
-bw_in = file.path(root_dir, 'data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw.RData')
+gb_in = paste0(root_dir, '/data/PROseq-RNA-K562-dukler-1_gb.RData')
+bw_in = paste0(root_dir, '/data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw.RData')
 
 # output path of loess corrected rc for following analysis
-corrected_rc_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_loess_gb.RData')
+corrected_rc_out = paste0(root_dir, '/data/k562_loess_gb.RData')
 
 # read in gb file
 gb = readRDS(gb_in)
 bw = readRDS(bw_in)
 
 # give an even bin size 
-bin_size = 200
+bin_size = 10
 
 # create bins
 create_windows <- function(gb, bin_size){
@@ -41,15 +41,15 @@ gbwd = create_windows(gb, bin_size = bin_size)
 summarise_wdrc <- function(bw, grng) {
   rc <- grng %>%
     plyranges::find_overlaps_directed(bw) %>%
-    group_by(seqnames, start, end, strand, ensembl_gene_id) %>%
-    summarise(score = sum(score)) %>%
-    as_tibble()
+    dplyr::group_by(seqnames, start, end, strand, ensembl_gene_id) %>%
+    dplyr::summarise(score = sum(score)) %>%
+    tibble::as_tibble()
   
   # for those not overlapped with bw, means no reads count
   rc <- grng %>% 
-    as_tibble() %>% 
-    left_join(rc, by = c('seqnames', 'start', 'end', 'strand', 'ensembl_gene_id')) %>%
-    replace_na(list(score = 0)) 
+    tibble::as_tibble() %>% 
+    dplyr::left_join(rc, by = c('seqnames', 'start', 'end', 'strand', 'ensembl_gene_id')) %>%
+    tidyr::replace_na(list(score = 0)) 
   
   return(rc)
 }
@@ -197,7 +197,9 @@ get_newrc <- function(pre_profile, raw_rc){
 new_rcList = get_newrc(pre_profile, raw_rc)
 #new_rcList[[1]]
 #### save loess corrected read counts for following analysis
-corrected_rc_tosave = new_rcList %>% bind_rows() %>% select(-score)
+corrected_rc_tosave = new_rcList %>% 
+  dplyr::bind_rows() %>%
+  dplyr::select(-score)
 saveRDS(corrected_rc_tosave, corrected_rc_out)
 
 
@@ -225,8 +227,8 @@ view_loess_cases <- function(gene_name, new_rcList){
 #set.seed(225)
 sample_cases = sample(names(new_rcList), 1)
 print(sample_cases)
-new_rcList[[sample_cases]]
-sample_cases = "ENSG00000111011"
+#new_rcList[[sample_cases]]
+#sample_cases = "ENSG00000111011"
 p = view_loess_cases(sample_cases, new_rcList)
 p
 dev.off()
@@ -305,3 +307,45 @@ g <- ggplot(data = pred_melt,
   theme(legend.position = "top")+ 
   scale_color_brewer(type = 'div', palette = 'Set1', direction = 1)
 g
+
+
+
+########### use loess corrected read counts to generate corrected p3 bw ######
+#### following analysis like creating metaplot will use corrected bw #########
+bw_p3_in = paste0(root_dir, '/data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw.RData')
+bw_p3 =readRDS(bw_p3_in)
+bw_p3 <- BRGenomics::makeGRangesBRG(bw_p3) #make basepair-resolution (single-width)
+
+# path of input loess corrected read counts
+loess_rc_in = paste0(root_dir, '/data/k562_loess_gb.RData')
+
+# # read in loess rc
+loess_rc = readRDS(loess_rc_in)
+loess_rc <- loess_rc %>% plyranges::as_granges()
+
+# revise bw file with loess scale_constant: corrected = raw/scale_constant
+loess_corrected_bw <- function(bw_p3, loess_rc){
+   bw <- bw_p3 %>%
+     plyranges::find_overlaps_directed(loess_rc) %>%
+     dplyr::mutate(score = score/scale_constant) %>%
+     dplyr::select(-scale_constant, -loess_score, -ensembl_gene_id)
+
+   return(bw)
+}
+
+corrected_bw <- loess_corrected_bw(bw_p3, loess_rc)
+
+#save corrected_bw
+corrected_bw_out =  paste0(root_dir, '/data/p3/k562_corrected_p3bw.Rdata')
+saveRDS(corrected_bw, corrected_bw_out)
+
+
+# subset only chromosome 22
+corrected_rc_in = paste0(root_dir, '/data/k562_loess_gb.RData')
+corrected_rc = readRDS(corrected_rc_in)
+
+corrected_rc_22 <- corrected_rc %>% 
+  dplyr::filter(seqnames == '22')
+
+corrected_rc_22_out = paste0(root_dir, '/data/k562_loess_gb_chr22.RData')
+saveRDS(corrected_rc_22, corrected_rc_22_out)

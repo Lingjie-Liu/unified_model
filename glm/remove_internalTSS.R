@@ -40,14 +40,14 @@ remove_dreg <- function(gr1, gr2){
   
   diff_result <- psetdiff(gr1, grl) %>% unlist # psetdiff() can only take objects
   # which either of them should be a GRange List 
-  final_results = find_overlaps_directed(diff_result, gr1)
+  final_results = plyranges::find_overlaps_directed(diff_result, gr1)
   
   return(final_results)
 }
 
 gb_no_dreg = remove_dreg(gb, dreg)
 #remove too short region that is smaller than the bin size  
-gb_no_dreg <- gb_no_dreg %>% filter(width >= bin_size)
+gb_no_dreg <- gb_no_dreg %>% dplyr::filter(width >= bin_size)
 
 ## saves
 saveRDS(gb_no_dreg, gb_nodreg_out)
@@ -60,12 +60,12 @@ grocap_minus_in = file.path(root_dir, 'data/grocap/K562_GROcap_minus.bigWig')
 grocap_out = file.path(root_dir, 'data/grocap/K562_grocap.RData')
 
 #### read in grocap bw file and revise it into granges object 
-grocap_plus = import.bw(grocap_plus_in)
+grocap_plus = rtracklayer::import.bw(grocap_plus_in)
 strand(grocap_plus) <- '+'
 
-grocap_minus = import.bw(grocap_minus_in)
+grocap_minus = rtracklayer::import.bw(grocap_minus_in)
 strand(grocap_minus) <- '-'
-grocap_minus <- grocap_minus %>% mutate(score = abs(score))
+grocap_minus <- grocap_minus %>% dplyr::mutate(score = abs(score))
 
 grocap = c(grocap_plus, grocap_minus)
 seqlevelsStyle(grocap) <- 'NCBI'
@@ -78,31 +78,32 @@ wd_size <- 2000
 gb_wd <- gb_no_dreg %>% 
   GenomicRanges::slidingWindows(width = wd_size, step = wd_size) %>% 
   unlist %>% plyranges::find_overlaps_directed(gb_no_dreg) %>% 
-  filter(width == wd_size)
+  dplyr::filter(width == wd_size)
 
 ##### summarize gro-cap in the windows
 ##### grocap count, add count on both strand ????? or single strand?
 summarise_wdgrocap <- function(bw, grng) {
   rc <- grng %>%
     plyranges::find_overlaps(bw) %>% #### both strand find_overlaps(), single consensus strand find_overlaps_directed()
-    group_by(seqnames, start, end, strand, ensembl_gene_id) %>%
-    summarise(score = sum(score)) %>%
-    as_tibble()
+    dplyr::group_by(seqnames, start, end, strand, ensembl_gene_id) %>%
+    dplyr::summarise(score = sum(score)) %>%
+    tibble::as_tibble()
   return(rc)
 }
 
 gbwd_grocap <- summarise_wdgrocap(grocap, gb_wd)
 gbwd_grocap <- gb_wd %>% 
-  as_tibble() %>% 
-  left_join(gbwd_grocap, by = c('seqnames', 'start', 'end', 'strand', 'ensembl_gene_id')) %>%
-  replace_na(list(score = 0)) %>%
-  as_granges()
+  tibble::as_tibble() %>% 
+  dplyr::left_join(gbwd_grocap, by = c('seqnames', 'start', 'end', 'strand', 'ensembl_gene_id')) %>%
+  tidyr::replace_na(list(score = 0)) %>%
+  plyranges::as_granges()
 gbwd_grocap$score %>% summary
 
 # remove windows with enough grocap
-groseq_cut <- 1 
-gb_nodreg_nocap <- gbwd_grocap %>% filter(score < groseq_cut) %>% 
-  select(-score)%>% as_granges()
+groseq_cut <- 95691
+gb_nodreg_nocap <- gbwd_grocap %>% 
+  dplyr::filter(score < groseq_cut) %>% 
+  dplyr::select(-score)%>% as_granges()
 
 ### save files
 gb_nodreg_nocap_out =  file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb_nodreg_nocap.RData')

@@ -2,14 +2,16 @@
 library(DENR)
 library(GenomicRanges)
 library(plyranges)
+library(dplyr)
 library(tidyverse)
 library(rtracklayer)
 
-root_dir = 'D:/unified_model'
+root_dir = '/Users/ling/unified_model'
 
 # output: the grange of dominant promoter  
 tid_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_dp.RData')
 gb_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb.RData')
+gene_tx_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gene_tx.RData')
 
 # path of read in files
 tq_in <- file.path(root_dir, "data/PROseq-RNA-K562-dukler-1_tq.RData")
@@ -50,7 +52,7 @@ dpexp <- pexp %>%
   slice_max(abundance) %>%
   ungroup()
 
-dp <- dpexp %>% select(-abundance) %>% mutate(dominant = TRUE)
+dp <- dpexp %>% dplyr::select(-abundance) %>% mutate(dominant = TRUE)
 
 # get transcripts which belong to the dominant promoter  
 dtx <- texp %>%
@@ -76,7 +78,11 @@ tidgrng <- tidgrng[width(tidgrng) < tid_cutoff]
 
 # save dominant promoter granges as output
 saveRDS(tidgrng, tid_out)
-
+# save gene ids and its corresponding dominant TXs ids 
+gene_tx <- tssgrng %>% 
+  dplyr::as_tibble()%>% 
+  dplyr::select(ensembl_transcript_id, ensembl_gene_id)
+saveRDS(gene_tx, gene_tx_out)
 
 
 tidgrng = readRDS(tid_out)

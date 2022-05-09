@@ -17,7 +17,9 @@ final_k = readRDS(final_k_in)
 k <- final_k %>% pull(value)
 
 # path of whole feature matrix 
-gb_ft_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_final_features_wholeGenome.RData')
+#gb_ft_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_final_features_wholeGenome.RData')
+gb_ft_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gbwd_features_wholeGenome.RData')
+           
 
 # read in 
 gb <- readRDS(gb_ft_in)
@@ -28,6 +30,7 @@ gene_rc <- gb %>% group_by(ensembl_gene_id) %>% summarize(score = sum(score))
 gene_length <- gb %>% group_by(ensembl_gene_id) %>% summarize(bin_num = n())
 lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
 
+
 SBj <- gene_rc
 
 ######## check fitting
@@ -37,9 +40,9 @@ calculate_UBj <- function(k, gb_demo){
   gene_power <- tibble(ensembl_gene_id = gb_demo$ensembl_gene_id, 
                        power = power*(-1))
   
-  UBj <- gene_power %>% mutate(exp_power = exp(power)) %>% 
-    group_by(ensembl_gene_id) %>%
-    summarise(sum_exp_power = sum(exp_power))
+  UBj <- gene_power %>% dplyr::mutate(exp_power = exp(power)) %>% 
+    dplyr::group_by(ensembl_gene_id) %>%
+    dplyr::summarise(sum_exp_power = sum(exp_power))
   
   return(UBj)
 }
@@ -61,19 +64,31 @@ head(zeta)
 
 ### correlation of expected rc and real rc
 ## locally : per bin correlation
-bin_num = gb %>% group_by(ensembl_gene_id) %>% summarise(num = n()) %>% pull(num)
-expected = rep(lambda*alphaj$alpha, bin_num)/zeta
-expected_real = tibble(expected = expected, real = gb$score)
+# bin_num = gb %>% group_by(ensembl_gene_id) %>% summarise(num = dplyr::n()) %>% pull(num)
+# expected = rep(lambda*alphaj$alpha, bin_num)/zeta
+# expected_real = tibble(expected = expected, real = gb$score)
+# cor(expected_real, method = c("spearman"))
+# cor(expected_real, method = c("pearson"))
+gb_alphaj_zeta  =  dplyr::inner_join(gb, alphaj, by = "ensembl_gene_id") %>% 
+  tibble::add_column(zeta = zeta)
+expected = lambda * gb_alphaj_zeta$alpha / gb_alphaj_zeta$zeta
+expected_real = tibble(expected = expected , real = gb_alphaj_zeta$score)
 cor(expected_real, method = c("spearman"))
-cor(expected_real, method = c("pearson"))
+
+
+ggplot(test_plus, aes(x = expected)) + geom_density()+xlim(0,10)
+
+
+ggplot(gb, aes(x = score)) + geom_density()+xlim(0,10)
+
 
 # use all bins 
 p = ggplot(expected_real, aes(x=real, y=expected) ) + 
-  ylim(0,80)+
-  xlim(0,80)+
+  #ylim(0,80)+
+  #xlim(0,80)+
   geom_bin2d(bins = 200) +
   scale_fill_continuous(type = "viridis") + theme_bw()+ geom_abline(slope = 1)+
-  ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x = 3)
+  ggpubr::stat_cor(method = "spearman", aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x = 3)
 p
 
 # remove bins with 0 in either expected or real 
@@ -96,18 +111,18 @@ ggplot(data, aes(x = value, fill = variable)) + geom_density(alpha = 0.5)+
 
 ## gene-level : per gene total counts correlation 
 gene_expected_real <- expected_real %>% 
-  add_column(ensembl_gene_id = gb$ensembl_gene_id) %>% 
-  group_by(ensembl_gene_id) %>% 
-  summarise(expected = sum(expected), real = sum(real)) 
+  tibble::add_column(ensembl_gene_id = gb$ensembl_gene_id) %>% 
+  dplyr::group_by(ensembl_gene_id) %>% 
+  dplyr::summarise(expected = sum(expected), real = sum(real)) 
+test = gene_expected_real %>% filter(abs(expected - real) < 1)
 
 p = ggplot(gene_expected_real, aes(x=real, y=expected) ) + 
-  ylim(0,1000)+
-  xlim(0,1000)+
+  #ylim(0,1000)+
+  #xlim(0,1000)+
   geom_bin2d(bins = 20) +
   scale_fill_continuous(type = "viridis") + theme_bw()+ geom_abline(slope = 1)+
   ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x = 3)
 p
-
 
 # get distribution of zeta and alpha 
 p <- zeta %>% as_tibble  %>% 
@@ -116,6 +131,7 @@ p
 
 p <- alphaj %>% 
   ggplot(aes(x = alpha)) + geom_density()+theme_bw()+xlab('initiation rate')+xlim(0,10)
+
 p
 
 rate_df = data.frame(zeta = zeta, 
@@ -139,8 +155,8 @@ ggcorr(rc_ft, label = TRUE, label_alpha = TRUE, method = c("pairwise", "spearman
 
 
 #### plot raw reads count correlation with features ######## 
-ft_df = gb[6:18]
-ft_df
+ft_df = gb[,c(9,12,13)]
+ggcorr(ft_df, label = TRUE, label_alpha = TRUE, method = c("pairwise", "spearman"))
 matrix <- cor(ft_df, method="spearman",use="everything")
 corrplot(matrix, type = "full",method = "color",outline = T, 
          addgrid.col = "white", order="hclust", mar = c(0,0,1,0), addrect = 4, 
@@ -234,7 +250,8 @@ predict_real_df <- expected_real %>%
   dplyr::mutate(type = factor(type, levels = c('fastest', 'medium_fastest','medium', 'medium_slowest', 'slowest'))) 
 
 p<- ggplot(predict_real_df, aes(x = type, y = pred_quantile, fill = type)) +
-  geom_boxplot(width=0.5)+
+  #geom_violin()+
+  geom_boxplot()+
   scale_fill_brewer(palette = "Blues") + theme_classic() +
   xlab("rate category") + ylab("prediction")
 p

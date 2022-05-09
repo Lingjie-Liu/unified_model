@@ -23,7 +23,10 @@ dreg_grocap_gb = readRDS(dreg_grocap_gb_in)
 dreg_grocap_gb$ensembl_gene_id <- NULL
 
 # get intersection
-final_gb <- loess_gb %>% plyranges::find_overlaps_directed(dreg_grocap_gb)
+final_gb <- loess_gb %>% 
+  plyranges::find_overlaps_directed(dreg_grocap_gb) %>% 
+  unique()
+
 
 # save and export files
 saveRDS(final_gb, final_gb_out)
