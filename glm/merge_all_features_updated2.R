@@ -8,7 +8,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome)
 library(Repitools)
 
-root_dir =  '/Users/ling/unified_model'
+root_dir =  'D:/unified_model'
 
 # feature path, read in
 ctcf_in = paste0(root_dir, '/data/chip/ctcf_chip_clean.Rdata')
@@ -20,7 +20,7 @@ rpts_in = file.path(root_dir, '/data/hgrepeats.Rdata')
 gb_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_final_gb.RData')
 
 # path for sliced gene bodies grng with small windows, reads count attached, read out
-final_ft_out = (root_dir, 'data/PROseq-RNA-K562-dukler-1_final_features_wholeGenome.RData')
+final_ft_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_final_features_wholeGenome.RData')
 
 # read in 
 ctcf = readRDS(ctcf_in)
@@ -29,6 +29,7 @@ dms = readRDS(dms_in)
 rpts = readRDS(rpts_in)
 gb = readRDS(gb_in)  # calculated Xji, reads count per window (loess corrected), is included in gb
 
+gb$ensembl_gene_id %>% unique %>% length
 
 # prepare the gb windows 
 # remove scale constant and rename 

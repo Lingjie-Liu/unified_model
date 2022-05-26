@@ -6,7 +6,7 @@ library(dplyr)
 library(tidyverse)
 library(rtracklayer)
 
-root_dir = '/Users/ling/unified_model'
+root_dir = 'D:/unified_model'
 
 # output: the grange of dominant promoter  
 tid_out = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_dp.RData')
@@ -51,6 +51,7 @@ dpexp <- pexp %>%
   group_by(gene_name) %>%
   slice_max(abundance) %>%
   ungroup()
+
 
 dp <- dpexp %>% dplyr::select(-abundance) %>% mutate(dominant = TRUE)
 

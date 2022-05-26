@@ -4,7 +4,7 @@ library(plyranges)
 library(tidyverse)
 library(rtracklayer)
 
-root_dir = '/Users/ling/unified_model'
+root_dir = 'D:/unified_model'
 
 # path of identified gene bodies and proseq file
 gb_in = paste0(root_dir, '/data/PROseq-RNA-K562-dukler-1_gb.RData')
@@ -162,6 +162,7 @@ g
 
 ### pre-compute loess values for data querying
 # add scaled loess values to pre-computed position datatable
+out <- setNames(out, NULL) #remove the names of the vector 
 pre_profile <- out * shape_scale_factor 
 
 # produce smoothed rc with loess value
@@ -196,10 +197,13 @@ get_newrc <- function(pre_profile, raw_rc){
 
 new_rcList = get_newrc(pre_profile, raw_rc)
 #new_rcList[[1]]
+#str(new_rcList[[1]]$scale_constant)
+
 #### save loess corrected read counts for following analysis
 corrected_rc_tosave = new_rcList %>% 
   dplyr::bind_rows() %>%
   dplyr::select(-score)
+
 saveRDS(corrected_rc_tosave, corrected_rc_out)
 
 

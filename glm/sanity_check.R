@@ -8,7 +8,7 @@ library(ggpubr)
 library(corrplot)
 library(GGally)
 
-root_dir = '/Users/ling/unified_model'
+root_dir = 'D:/unified_model'
 
 # read in final coefficients 
 final_k_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gbwd_wholeGenome_finalK.RData')

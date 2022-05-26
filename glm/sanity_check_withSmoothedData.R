@@ -8,7 +8,7 @@ library(ggpubr)
 library(corrplot)
 library(GGally)
 
-root_dir = '/Users/ling/unified_model'
+root_dir = 'D:/unified_model'
 
 # read in final coefficients 
 final_k_in = paste0(root_dir, '/data/k562_kappa.RData')
@@ -63,7 +63,6 @@ head(zeta)
 #### check correlation of features
 #Yji <- Yji %>% mutate(across(where(is.numeric), as.numeric))
 #ggcorr(Yji, label = TRUE, label_alpha = TRUE, method = c("pairwise", "spearman"))
-
 
 
 
@@ -260,12 +259,16 @@ p
 # use all bins 
 p <- expected_smreal %>% 
   dplyr::filter(real > 0) %>% 
-  ggplot(., aes(x = real, y = expected)) + 
+  ggplot(., aes(x = real, y = expected)) +  labs(fill = "Bin Counts")+
   ylim(0,6)+
   xlim(0,6)+
-  geom_bin2d(bins = 200) + ylab("predicted pro-seq read counts")+xlab("true pro-seq read counts")+
-  scale_fill_continuous(type = "viridis") + theme_bw()+ geom_abline(slope = 1)+
-  ggpubr::stat_cor(method = "spearman", aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x = 1, label.y = 6)
+  geom_bin2d(bins = 200) + 
+  ylab("Predicted")+ xlab("True")+
+  scale_fill_continuous(type = "viridis") + 
+  theme_classic(base_family = "Arial", base_size = 25)+ 
+  theme(legend.title = element_text(size = 16))+
+  geom_abline(slope = 1, size = 0.6, linetype="dashed")
+#+ggpubr::stat_cor(method = "spearman", aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x = 0.4, label.y = 6, size = 6)
 p
 
 ## gene-level : per gene total counts correlation 
@@ -281,4 +284,21 @@ p = ggplot(gene_expected_real, aes(x=real, y=expected) ) +
   geom_bin2d(bins = 20) +
   scale_fill_continuous(type = "viridis") + theme_bw()+ geom_abline(slope = 1)+
   ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x = 3)
+p
+
+
+
+
+####### kappa for grant
+final_k
+kappa_df = tibble(feature = c("low cmplx", "CTCF", "his mods", "stem-loop", 
+                              "5' spl", "3' spl", "G+C"),
+                  coefficient = c(0.0645, -0.00842, -0.046608, -0.073988,
+                                  -0.1372, -0.14919, -0.246029))
+
+kappa_df$feature <- factor(kappa_df$feature, levels = kappa_df$feature)
+
+p <- ggplot(data = kappa_df, aes(y = feature, x = coefficient)) + 
+  geom_bar(stat="identity") + theme_classic(base_family = "Arial", base_size = 25)+
+  xlab("Coefficient") +ylab("Feature")+ theme(axis.text.y = element_text(size = 25))
 p

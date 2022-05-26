@@ -6,15 +6,12 @@ root_dir = 'D:/unified_model'
 
 # path of gb windows grng with all features, read in 
 gb_ft_in = paste0(root_dir, '/data/k562_features_matrix.RData')
-gb_ft_in = paste0(root_dir, '/data/PROseq-RNA-K562-dukler-1_loess_gb.RData')
 
 # read in 
 gb <- readRDS(gb_ft_in)
 gb_demo <- gb 
-gb_demo 
+gb_demo
 
-
-gb_demo$loess_score
 
 # calculate lambda: gb is binned into windows, so length l should be the number 
 # of windows per gb
@@ -22,69 +19,74 @@ gene_rc <- gb %>% dplyr::group_by(ensembl_gene_id) %>% dplyr::summarise(score = 
 gene_length <- gb %>% group_by(ensembl_gene_id) %>% summarize(bin_num = dplyr::n())
 lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
 
-gene_rc$score %>% summary
-gene_length$bin_num %>% summary
+# calculation of SBj
+SBj <-  gene_rc
 
-# calculate TBj
-TBj <- gb_demo %>% 
-  dplyr::select(7: last_col()) %>% 
-  #dplyr::mutate_each(funs(.*gb_demo$score))
-  #dplyr::mutate_each(list(~ .*gb_demo$score)) %>% 
-  dplyr::mutate(across(.cols = everything(), ~ .x*gb_demo$score)) %>% 
-  tibble::add_column(ensembl_gene_id = gb_demo$ensembl_gene_id) %>% 
+### compute once
+#Yji contains gene_id, xji and features
+Yji <- gb_demo %>% 
+  dplyr::select(5:last_col())
+
+#calculation of TBj
+TBj <- Yji %>% 
+  dplyr::mutate(across(c(3: last_col()), ~ .x*score)) %>% 
+  dplyr::select(-score) %>% 
   dplyr::group_by(ensembl_gene_id) %>%
-  dplyr::summarise(across(where(is.numeric), sum))
+  dplyr::summarise(across(.cols = everything(), sum))
 
 
-#  calculate SBj
-SBj <- gb_demo %>% dplyr::group_by(ensembl_gene_id) %>% dplyr::summarize(score = sum(score))
-SBj
+# calculate e(-k.yji)
+calculate_expNdot <- function(k, Yji){
+  power <- Yji %>%
+    dplyr::select(3:last_col()) %>% 
+    as.matrix(.) %*% k %>% 
+    as.vector()
+    
+   expNdot <- Yji %>%
+    dplyr::select(ensembl_gene_id) %>% 
+    dplyr::mutate(exp_power = exp(-1 * power))
+ 
+  return(expNdot)
+}
 
-### update each iteration : UBj, alphaj and VBj 
 # calculate UBj
-calculate_UBj <- function(k, gb_demo){
-  Yji <- gb_demo %>% dplyr::select(score:last_col(), -score)
-  power <- Yji %>% apply(1, crossprod, k)
-  gene_power <- tibble(ensembl_gene_id = gb_demo$ensembl_gene_id, 
-                       power = power*(-1))
-  
-  UBj <- gene_power %>% mutate(exp_power = exp(power)) %>% 
-    group_by(ensembl_gene_id) %>%
-    summarise(sum_exp_power = sum(exp_power))
+calculate_UBj <- function(expNdot){
+  UBj <- expNdot %>% 
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarise(UBj = sum(exp_power))
   
   return(UBj)
 }
 
 # calculate alphaj
 calculate_alphaj <- function(lambda, SBj, UBj){
-  alphaj <- tibble(ensembl_gene_id = SBj$ensembl_gene_id, 
-                   alpha = SBj$score/(lambda*UBj$sum_exp_power))
+  alphaj <- SBj %>% 
+    dplyr::inner_join(UBj, by = 'ensembl_gene_id') %>% 
+    dplyr::mutate(alpha = score / (lambda * UBj)) %>% 
+    dplyr::select(-score, -UBj)
   return(alphaj)
 }
 
-# calculate VBj
-calculate_VBj <- function(k, gb_demo){
-  Yji <- gb_demo %>% dplyr::select(score:last_col(), -score)
-  power <- Yji %>% apply(1, crossprod, k)
-  power <- exp(power*(-1))
-  
-  VBj <- Yji %>% 
-    #dplyr::mutate_each(list(~.*power)) %>% 
-    dplyr::mutate(across(.cols = everything(), ~ .x*power)) %>% 
-    tibble::add_column(ensembl_gene_id = gb_demo$ensembl_gene_id) %>% 
-    dplyr::group_by(ensembl_gene_id) %>%
-    dplyr::summarise(across(where(is.numeric), sum))
-  
-  return(VBj)
+# calculate VBj 
+calculate_VBj <- function(expNdot, Yji){
+ VBj <- Yji %>% 
+   dplyr::select(-score) %>% 
+   dplyr::mutate(across(where(is.numeric), ~.x*expNdot$exp_power)) %>% 
+   dplyr::group_by(ensembl_gene_id) %>% 
+   dplyr::summarise(across(.cols = everything(), sum))
+   
+ return(VBj)
 }
 
 # calculate simplified likelihood
 calculate_likelihood <- function(SBj, k, TBj, UBj){
-  item1 <- (-1)*SBj$score*log(UBj$sum_exp_power)
+  item1 <- (-1)*SBj$score*log(UBj$UBj)
   
-  Yji <- TBj %>% dplyr::select(2:last_col()) 
-  item2 <- Yji %>% apply(1, crossprod, k) 
-  
+  item2 <- TBj %>% 
+    dplyr::select(2:last_col()) %>% 
+    as.matrix(.) %*% k %>% 
+    as.vector()
+
   likelihood <- sum(item1-item2)
   
   return(likelihood)
@@ -92,37 +94,53 @@ calculate_likelihood <- function(SBj, k, TBj, UBj){
 
 # calculate gradient 
 calculate_gradient <- function(lambda, alphaj, VBj, TBj){
-  VBj_number <- VBj %>% dplyr::select(2:last_col())
-  item1 <- lambda*alphaj$alpha*VBj_number 
-  
-  TBj_number <- TBj %>% dplyr::select(2:last_col())
-  
-  gradient <- colSums(item1 - TBj_number) 
+  item1 <- VBj %>%
+    dplyr::mutate(across(where(is.numeric), ~.x * lambda * alphaj$alpha)) %>%
+    dplyr::select(-ensembl_gene_id)
+
+  TBj_number <- TBj %>% dplyr::select(-ensembl_gene_id)
+
+  gradient <- colSums(item1 - TBj_number)
   
   return(gradient)
 }
 
+######## time testing: 0.21s ##############
+# k = rep(0, 7)
+# t1<-Sys.time()
+# expNdot <- calculate_expNdot(k, Yji)
+# UBj = calculate_UBj(expNdot)
+# alphaj = calculate_alphaj(lambda, SBj, UBj)
+# VBj = calculate_VBj(expNdot, Yji)
+# likelihood = calculate_likelihood(SBj, k, TBj, UBj)
+# now = calculate_gradient(lambda, alphaj, VBj, TBj)
+# t2<-Sys.time()
+# print(t2 - t1)
 
-################ demo GA
 
 ##### initialize all values
 k = rep(0, 7)
+t1<-Sys.time()
 
-UBj = calculate_UBj(k, gb_demo)
+expNdot <- calculate_expNdot(k, Yji)
+
+UBj = calculate_UBj(expNdot)
 
 alphaj = calculate_alphaj(lambda, SBj, UBj)
 
-VBj = calculate_VBj(k, gb_demo)
+VBj = calculate_VBj(expNdot, Yji)
 
 L0 = calculate_likelihood(SBj, k, TBj, UBj)
 
 g = calculate_gradient(lambda, alphaj, VBj, TBj)
 
+t2<-Sys.time()
+print(t2 - t1)
 
-#### demo1
+###################### GA ####################################
 learning_size = 0.00001
 
-increase_cut <- 0.1
+increase_cut <- 0.01
 
 go_next <- T
 
@@ -130,6 +148,7 @@ total_l = c(L0)
 total_g <- c(g)
 total_k <- c(k)
 
+t1<-Sys.time()
 while(go_next == T){
   
   # Propose next kappa
@@ -138,9 +157,10 @@ while(go_next == T){
   change_step <- F
   
   ## calculation for new log likelihood
-  UBj = calculate_UBj(k1, gb_demo)
+  expNdot <- calculate_expNdot(k1, Yji)
+  UBj = calculate_UBj(expNdot)
   alphaj = calculate_alphaj(lambda, SBj, UBj)
-  VBj = calculate_VBj(k1, gb_demo)
+  VBj = calculate_VBj(expNdot, Yji)
   
   L = calculate_likelihood(SBj, k1, TBj, UBj)
   print("Proposal Likelihood:")
@@ -157,9 +177,10 @@ while(go_next == T){
     # Propose next kappa
     k1 = g*learning_size + k
     
-    UBj = calculate_UBj(k1, gb_demo)
+    expNdot <- calculate_expNdot(k1, Yji)
+    UBj = calculate_UBj(expNdot)
     alphaj = calculate_alphaj(lambda, SBj, UBj)
-    VBj = calculate_VBj(k1, gb_demo)
+    VBj = calculate_VBj(expNdot, Yji)
     
     L = calculate_likelihood(SBj, k1, TBj, UBj)
     
@@ -173,20 +194,20 @@ while(go_next == T){
     go_next <- F
   }
   
-  while(go_next ==T & (L-L0)>0 & (L-L0)<increase_cut){
+  while(go_next == T & (L-L0)>0 & (L-L0)<increase_cut){
     print("Increase learning_size")
     change_step <- T
     learning_size = learning_size*2
     print("learning_size:")
     print(learning_size)
     
-    
     # Propose next kappa
     k1 = g*learning_size + k
     
-    UBj = calculate_UBj(k1, gb_demo)
+    expNdot <- calculate_expNdot(k1, Yji)
+    UBj = calculate_UBj(expNdot)
     alphaj = calculate_alphaj(lambda, SBj, UBj)
-    VBj = calculate_VBj(k1, gb_demo)
+    VBj = calculate_VBj(expNdot, Yji)
     
     L = calculate_likelihood(SBj, k1, TBj, UBj)
     
@@ -196,9 +217,10 @@ while(go_next == T){
   k = k1
   L0 = L
   
-  UBj = calculate_UBj(k, gb_demo)
+  expNdot <- calculate_expNdot(k1, Yji)
+  UBj = calculate_UBj(expNdot)
   alphaj = calculate_alphaj(lambda, SBj, UBj)
-  VBj = calculate_VBj(k, gb_demo)
+  VBj = calculate_VBj(expNdot, Yji)
   
   g = calculate_gradient(lambda, alphaj, VBj, TBj)
   
@@ -212,11 +234,15 @@ while(go_next == T){
 g
 k
 
+t2<-Sys.time()
+print(t2 - t1)
+
+
 #### plot
 library(reshape2)
 
 ft_num = length(k)
-features_name = c('gc', 'low_complexity', 'ctcf', 'myc', 'histone', '5_ss', '3_ss','RNA_loop')
+features_name = c('gc', 'low_complexity', 'ctcf', 'histone', '5_ss', '3_ss','RNA_loop')
 
 l_plot <- data.frame(likelihood = total_l[1:length(total_l)], step = c(1: length(total_l)))
 ggplot(l_plot,aes(x=step,y=likelihood)) + geom_line(size =1)+ geom_point(size=2)

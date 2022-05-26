@@ -7,26 +7,24 @@ library(data.table)
 library(tidyverse)
 library(ggplot2)
 
-root_dir =  '/Users/ling/unified_model'
+root_dir =  'D:/unified_model'
 
 # path of ctcf raw data and read in
+#tf_type = 'myc'
 tf_type = 'ctcf'
 #tf_type = 'top2'
 
 tf_in = paste0(root_dir, '/data/chip/',tf_type,'_rpm.Rdata')
-ctcf = readRDS(tf_in)
-
-
-tf_in = paste0(root_dir, '/data/chip/',tf_type,'.bw')
-ctcf = rtracklayer::import.bw(tf_in)
-seqlevelsStyle(ctcf) <- 'NCBI'
+#ctcf = readRDS(tf_in)
+tf = readRDS(tf_in)
+seqlevelsStyle(tf) <- 'NCBI'
 
 # path of all histone raw bw data and read in 
 histone_in = paste0(root_dir, '/data/chip/histones/chr22_effective_histones_bigwig_rpm.Rdata')
 histone = readRDS(histone_in)
 
 ### check the distribution of ctcf
-# width(ctcf) %>% summary
+#width(myc) %>% summary
 # ctcf_resl <- tibble(width = width(ctcf))
 # ggplot(ctcf_resl, aes(x = width)) + geom_density() + xlim(0,50)+
 #   theme_classic() 
@@ -46,10 +44,10 @@ gbwd$ensembl_gene_id <- loess_rc[gbwd$partition]$ensembl_gene_id
 
 # get the ovp between gb and feature
 assign_chiplike_scores <- function(ft, gbwd, raw_bw, bin_size, ft_name){
-  ft <- ctcf
-  raw_bw <- 100
-  bin_size <- 10
-  ft_name <- 'ctcf'
+  # ft <- ctcf
+  # raw_bw <- 100
+  # bin_size <- 10
+  # ft_name <- 'ctcf'
 
   gb_ft <- gbwd %>%
     plyranges::find_overlaps_directed(ft) %>%
@@ -76,35 +74,35 @@ assign_chiplike_scores <- function(ft, gbwd, raw_bw, bin_size, ft_name){
                        original = ft_v, smoothed = ft_smoothed)
   
   #get the gb-feature overlap with smoothed feature and normalize scores from 0 to 1
-  gb_ft <- gb_ft %>%
-    dplyr::mutate(ft = ft_smoothed) %>%
-    dplyr::mutate(ft = (ft - min(ft)) / (max(ft) - min(ft))) %>%
-    dplyr::rename(!!ft_name := ft)
+  # gb_ft <- gb_ft %>%
+  #   dplyr::mutate(ft = ft_smoothed) %>%
+  #   dplyr::mutate(ft = (ft - min(ft)) / (max(ft) - min(ft))) %>%
+  #   dplyr::rename(!!ft_name := ft)
 
   # get the gb-features overlap with smoothed features and z normalize before assign missing values 0
-  # gb_ft <- gb_ft %>% 
-  #   dplyr::mutate(ft = scale(ft_smoothed)) 
+  gb_ft <- gb_ft %>%
+    dplyr::mutate(ft = scale(ft_smoothed))
   # print(summary(gb_ft$ft))
   # 
-  # gb_ft <- gbwd %>% 
-  #   tibble::as_tibble() %>% 
-  #   dplyr::left_join(gb_ft, by = c('seqnames', 'start', 'end', 'strand')) %>%
-  #   tidyr::replace_na(list(ft = 0)) %>% 
-  #   dplyr::rename(!!ft_name := ft)
+  gb_ft <- gbwd %>%
+    tibble::as_tibble() %>%
+    dplyr::left_join(gb_ft, by = c('seqnames', 'start', 'end', 'strand', 'partition', 'width', 'ensembl_gene_id')) %>%
+    tidyr::replace_na(list(ft = 0)) %>%
+    dplyr::rename(!!ft_name := ft)
 
   return(list(gb_ft = gb_ft, ft_compare = ft_compare))
 }
 
 # call and smooth 
-ctcf_smoothed <- assign_chiplike_scores(ctcf, gbwd, raw_bw = 100, bin_size = 10, ft_name = 'ctcf')
-smctcf <- ctcf_smoothed$gb_ft
+tf_smoothed <- assign_chiplike_scores(tf, gbwd, raw_bw = 100, bin_size = 10, ft_name = tf_type)
+smtf <- tf_smoothed$gb_ft
 
 histone_smoothed <- assign_chiplike_scores(histone, gbwd, raw_bw = 100, bin_size = 10, ft_name = 'histone')
 smhistone <- histone_smoothed$gb_ft
 
 ## save chip-like features: ctcf and histones
-ctcf_out <- paste0(root_dir, '/data/chip/gb_ctcf.Rdata')
-saveRDS(smctcf, ctcf_out)
+tf_out <- paste0(root_dir, '/data/chip/gb_', tf_type, '.Rdata')
+saveRDS(smtf, tf_out)
 
 histone_out <- paste0(root_dir, '/data/chip/gb_histones.Rdata')
 saveRDS(smhistone, histone_out)
@@ -112,10 +110,9 @@ saveRDS(smhistone, histone_out)
 
 ### plot and check the output after smoothing
 # compare plot
-ft_smoothed <- ctcf_smoothed
+ft_smoothed <- tf_smoothed
 data <- ft_smoothed$ft_compare %>% reshape2::melt(., id.var = "index")
-data <- ft_smoothed$ft_compare[c(28500:28650),] %>% reshape2::melt(., id.var = "index")
-data <- gb_ft[c(28500:28650),] %>% dplyr::select(ctcf) %>% add_column(index = seq(1,151,1))
+data <- ft_smoothed$ft_compare[c(3000:4000),] %>% reshape2::melt(., id.var = "index")
 
 p<- ggplot(data, aes(x = index, y = value, col = variable)) + geom_line() + theme_classic() 
 p
@@ -130,16 +127,16 @@ ggplot(data, aes(x = position, y = score)) + geom_line()+ theme_classic()
 ggplot(data[c(28500:28650),], aes(x = position, y = score)) + geom_line()+ theme_classic() 
 
 ### visualize a single case
-smft <- smhistone 
+smft <- tf_smoothed$ft_compare %>% tibble::add_column(ensembl_gene_id = tf_smoothed$gb_ft$ensembl_gene_id)
 sample_gene <- sample(unique(smft$ensembl_gene_id), 1)
-sample_gene = 'ENSG00000100342'
 case <- smft %>% dplyr::filter(ensembl_gene_id == sample_gene) 
 
 case_data <- case %>% 
-  dplyr::rename(value = histone) %>% 
-  dplyr::mutate(index = seq(1, length(value), 1))
+  dplyr::mutate(index = seq(1, nrow(.), 1)) %>% 
+  dplyr::select(-ensembl_gene_id) %>% 
+  reshape2::melt(., id.var = "index")
 
-p<- ggplot(case_data, aes(x = index, y = value)) + geom_line() +
+p<- ggplot(case_data, aes(x = index, y = value, color = variable)) + geom_line() +
   theme_classic() + ggtitle(sample_gene)
 p
 
@@ -234,6 +231,12 @@ ctcf_in = file.path(root_dir, 'data/chip/ctcf_chip_clean.Rdata')
 ctcf = readRDS(ctcf_in)
 data = process_chiplike(ctcf, gb, corrected_bw, 2000, 20)
 
+### process myc data
+myc_in = file.path(root_dir, 'data/chip/myc_chip_clean.Rdata')
+myc = readRDS(myc_in)
+data = process_chiplike(myc, gb, corrected_bw, 2000, 20)
+
+
 ### process splicing junction data
 # prepare splicing junction to chip_like data 
 raw_sj_in = paste0(root_dir, '/data/sj/final_SJ.tab')
@@ -281,7 +284,7 @@ rpts_meta = process_rptslike(rpts, gb, corrected_bw, 1000, 10)
 ### plot chip-like/rpts-like data
 ggplot(data, aes(x = position, y = mean_score)) + ylim(0.00, 0.06)+
   geom_line(size = 1) + 
-  labs(x = "Distance to histone (bp)", 
+  labs(x = "Distance to MYC (bp)", 
        y = "Mean PRO-seq Signal") + 
   theme_bw()+
   theme(legend.position = "top")
@@ -292,7 +295,7 @@ ggplot(data, aes(x = position, y = mean_score)) + ylim(0.00, 0.06)+
 sine_kernel <- function(bandwidth, offset, radius, bin_size, sj5_meta){
   # bandwidth <- 120
   # offset <- 20
-  # radius <- 100
+  # radius <- 80
   # bin_size <- 10
   x = seq((-1*radius + bin_size), radius, bin_size)
   sine_temp <-  0.01*sin(1*pi/bandwidth*x + (1 - offset/bandwidth)*pi) + 0.035
@@ -311,9 +314,23 @@ sine_kernel <- function(bandwidth, offset, radius, bin_size, sj5_meta){
   
   y_smoothed <- tibble(position = x, score = sine_temp)
   
-  #### normalize the values from -1 to 1 
+  ### normalize the values from -1 to 1
   normalized_score = y_smoothed %>%
     dplyr::mutate(score = 2 * (score - min(score)) / (max(score) - min(score)) - 1)
+  
+  ### compare normalization methods
+  # y <- sine_temp
+  # y1 <- 2 * (y - min(y)) / (max(y) - min(y)) - 1
+  # y2 <- scale(y1)
+  
+  # df <- data.frame(x = x, y = y)
+  # df1 <- data.frame(x = x, y= y1)
+  # df2 <- data.frame(x = x, y= y2)
+  # 
+  # ggplot()+
+  #   geom_line(data = df, aes(x = x, y = y), color = "blue") +
+  #   geom_line(data = df1, aes(x = x, y = y1), color = "red") +
+  #   geom_line(data = df2, aes(x = x, y = y2), color = "black") 
   
   return(normalized_score)
 }
@@ -347,10 +364,10 @@ ne_sine_kernel <- function(b1, b2, radius, bin_size, sj3_meta){
   
   y_smoothed <- tibble(position = c(x1, x2), score = c(ne_temp, sine_temp))
   
-  #### normalize the values from -1 to 1 
+  ### normalize the values from -1 to 1
   normalized_score = y_smoothed %>%
     dplyr::mutate(score = 2 * (score - min(score)) / (max(score) - min(score)) - 1)
-  
+
   return(normalized_score)
 }
 
@@ -395,28 +412,32 @@ smsj_3 <- assign_ss_scores(sj_original = sj_3, sj_smoothed = sj3_smoothed,
 gb_sj5 <- gbwd %>%
   plyranges::find_overlaps_directed(smsj_5) %>%
   dplyr::group_by(seqnames, start, end, strand) %>%
-  dplyr::summarise(sj5 = mean(score)) %>% # to average signal to avoid a bin might cover multiple ss windows
-  tibble::as_tibble()
+  dplyr::summarise(sj5 = sum(score)) %>% # to sum signals if a bin covers multiple ss windows
+  tibble::as_tibble() %>% 
+  dplyr::mutate(sj5 = scale(sj5)) # z norm before assigning 0s
 
 gb_sj5$sj5 %>% summary
 
 gb_sj5 <- gbwd %>% 
   tibble::as_tibble() %>% 
   dplyr::left_join(gb_sj5, by = c('seqnames', 'start', 'end', 'strand')) %>%
-  tidyr::replace_na(list(sj5 = 0))  %>% # replace NA as 0, handle regions without ss feature 
-  plyranges::as_granges()
+  tidyr::replace_na(list(sj5 = 0)) # replace NA as 0, handle regions without ss feature 
 
 # 3 ss
-gb_sj3 <- gb_sj5 %>%
+gb_sj3 <- gbwd %>%
   plyranges::find_overlaps_directed(smsj_3) %>%
   dplyr::group_by(seqnames, start, end, strand) %>%
-  dplyr::summarise(sj3 = mean(score)) %>% ## to average signal to avoid a bin might cover multiple ss windows
-  tibble::as_tibble()
+  dplyr::summarise(sj3 = sum(score)) %>% ## to average signal to avoid a bin might cover multiple ss windows
+  tibble::as_tibble() %>% 
+  dplyr::mutate(sj3 = scale(sj3))
 
-gb_sj3 <- gb_sj5 %>% 
+gb_sj3 <- gbwd %>% 
   tibble::as_tibble() %>% 
   dplyr::left_join(gb_sj3, by = c('seqnames', 'start', 'end', 'strand')) %>%
   tidyr::replace_na(list(sj3 = 0)) # replace NA as 0, handle regions without ss feature
+
+gb_ss <- gb_sj5 %>% 
+  dplyr::left_join(gb_sj3, by = c('seqnames', 'start', 'end', 'strand', 'width', 'partition', 'ensembl_gene_id'))
 
 gb_sj3$sj5 %>% summary
 gb_sj3$sj3 %>% summary
@@ -426,7 +447,7 @@ smsj_3$score %>% summary
 
 #### save SS smoothed data
 ss_out <- paste0(root_dir, '/data/sj/gb_ss.Rdata')
-saveRDS(gb_sj3, ss_out)
+saveRDS(gb_ss, ss_out)
 
 
 ### visualize a single case of assigned ss 
@@ -491,8 +512,9 @@ smdms <- assign_ss_scores(sj_original = dms, sj_smoothed = dms_smoothed,
 gb_dms <- gbwd %>%
   plyranges::find_overlaps_directed(smdms) %>%
   dplyr::group_by(seqnames, start, end, strand) %>%
-  dplyr::summarise(dms = mean(score)) %>% # to average signal to avoid a bin might cover multiple ss windows
-  tibble::as_tibble()
+  dplyr::summarise(dms = sum(score)) %>% # to SUM signal if a bin might cover multiple dms windows
+  tibble::as_tibble() %>% 
+  dplyr::mutate(dms = scale(dms))
 
 gb_dms$dms %>% summary
 

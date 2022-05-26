@@ -3,7 +3,7 @@ library(dplyr)
 library(plyranges)
 library(GenomicRanges)
 
-root_dir =  '/Users/ling/unified_model'
+root_dir =  'D:/unified_model'
 
 # path of gb windows grng with all features, read in 
 #gb_in = file.path(root_dir, 'data/PROseq-RNA-K562-dukler-1_gb.RData')
@@ -18,14 +18,14 @@ bw_p3_in = file.path(root_dir, 'data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw.RDat
 bw_p3 =readRDS(bw_p3_in)
 bw_p3 <- BRGenomics::makeGRangesBRG(bw_p3) #make basepair-resolution (single-width)
 
-### (optional) filter extremely large pro-seq signals
-bw_p3 <-  bw_p3 %>% filter(score < quantile(bw_p3$score, 0.99))
-bw_p3$score %>% summary
-
-### (optional) convert score into rpkm
-bwrpm_p3_in = file.path(root_dir, 'data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw_rpm.RData')
-bwrpm_p3 =readRDS(bwrpm_p3_in)
-bwrpkm_p3 = bwrpm_p3 %>% mutate(rpkm = score*1000/width)
+# ### (optional) filter extremely large pro-seq signals
+# bw_p3 <-  bw_p3 %>% filter(score < quantile(bw_p3$score, 0.99))
+# bw_p3$score %>% summary
+# 
+# ### (optional) convert score into rpkm
+# bwrpm_p3_in = file.path(root_dir, 'data/p3/PROseq-RNA-K562-dukler-1_mergedp3bw_rpm.RData')
+# bwrpm_p3 =readRDS(bwrpm_p3_in)
+# bwrpkm_p3 = bwrpm_p3 %>% mutate(rpkm = score*1000/width)
 
 
 #### BRGenomics to do metaplot ##############################################

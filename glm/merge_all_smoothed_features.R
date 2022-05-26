@@ -7,10 +7,9 @@ library(dplyr)
 library(plyranges)
 library(GenomicRanges)
 library(BSgenome.Hsapiens.UCSC.hg38)
-library(BSgenome)
 library(Repitools)
 
-root_dir =  '/Users/ling/unified_model'
+root_dir =  'D:/unified_model'
 
 # feature path
 ctcf_in = paste0(root_dir, '/data/chip/gb_ctcf.Rdata')
@@ -20,10 +19,10 @@ dms_in =  paste0(root_dir, '/data/dms/gb_dms.RData')
 rpts_in = paste0(root_dir, '/data/hgrepeats.Rdata')
 
 # read in, only rpts in granges, all other features are in tibble format 
-ctcf = readRDS(ctcf_in) %>% dplyr::select(-partition, -width)
-histone = readRDS(histone_in) %>% dplyr::select(-partition, -width)
-ss = readRDS(ss_in) %>% dplyr::select(-partition, -width)
-dms = readRDS(dms_in) %>% dplyr::select(-partition, -width)
+ctcf = readRDS(ctcf_in) %>% dplyr::select(-width, -partition)
+histone = readRDS(histone_in) %>% dplyr::select(-width, -partition)
+ss = readRDS(ss_in) %>% dplyr::select(-width, -partition)
+dms = readRDS(dms_in) %>% dplyr::select(-width, -partition)
 rpts = readRDS(rpts_in) 
 
 # path of final gb ( no removal of dereg or grocap)
@@ -54,7 +53,7 @@ seqlevelsStyle(gb_gc) <- "UCSC"
 gc <- Repitools::gcContentCalc(gb_gc, organism=Hsapiens, verbose=TRUE)
 
 gb_gc <- gb_rc %>% 
-  tibble::add_column(gc = gc)
+  tibble::add_column(gc = scale(gc)) 
 
 
 # add low complexity regions: repeats
@@ -68,7 +67,8 @@ gb_rpts <- gbwd %>%
 gb_rpts <- gb_gc %>% 
   tibble::as_tibble() %>% 
   dplyr::left_join(gb_rpts, by = c('seqnames', 'start', 'end', 'strand', 'ensembl_gene_id')) %>%
-  tidyr::replace_na(list(rpts = 0)) 
+  tidyr::replace_na(list(rpts = 0)) %>% 
+  dplyr::mutate(rpts = scale(rpts))
 
 
 # add ctcf, histones, ss, and rna loops
