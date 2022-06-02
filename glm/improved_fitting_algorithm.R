@@ -15,9 +15,16 @@ gb_demo
 
 # calculate lambda: gb is binned into windows, so length l should be the number 
 # of windows per gb
-gene_rc <- gb %>% dplyr::group_by(ensembl_gene_id) %>% dplyr::summarise(score = sum(score))
-gene_length <- gb %>% group_by(ensembl_gene_id) %>% summarize(bin_num = dplyr::n())
+gene_rc <- gb %>% 
+  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+  dplyr::group_by(ensembl_gene_id) %>% 
+  dplyr::summarize(score = sum(score))
+gene_length <- gb %>% 
+  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+  dplyr::group_by(ensembl_gene_id) %>% 
+  dplyr::summarize(bin_num = dplyr::n())
 lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
+
 
 # calculation of SBj
 SBj <-  gene_rc

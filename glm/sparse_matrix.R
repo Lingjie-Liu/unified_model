@@ -20,8 +20,14 @@ Yji <- readRDS(Yji_in)
 
 # calculate lambda: gb is binned into windows, so length l should be the number 
 # of windows per gb
-gene_rc <- gb %>% dplyr::group_by(ensembl_gene_id) %>% dplyr::summarise(score = sum(score))
-gene_length <- gb %>% group_by(ensembl_gene_id) %>% summarize(bin_num = dplyr::n())
+gene_rc <- gb %>% 
+  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+  dplyr::group_by(ensembl_gene_id) %>% 
+  dplyr::summarize(score = sum(score))
+gene_length <- gb %>% 
+  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+  dplyr::group_by(ensembl_gene_id) %>% 
+  dplyr::summarize(bin_num = dplyr::n())
 lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
 
 # calculation of SBj
@@ -131,8 +137,6 @@ calculate_likelihood <- function(SBj, k, TBj, UBj, lambda1, lambda2){
   return(likelihood)
 }
 
-a = c(1,0,-1,-2)
-sum(a^2)
 
 # calculate gradient 
 calculate_gradient <- function(lambda, alphaj, VBj, TBj){
@@ -150,7 +154,7 @@ calculate_gradient <- function(lambda, alphaj, VBj, TBj){
 ##### time test: 0.27s ####
 # initialize k, lambda1, lambda2
 k = rep(0, ncol(Yji))
-lambda1 = 0.1
+lambda1 = 100
 lambda2 = 0.1
 t1<-Sys.time()
 expNdot <- calculate_expNdot(k, Yji)
@@ -168,7 +172,7 @@ print(t2 - t1)
 ##### GA #####
 learning_size = 0.00001
 
-increase_cut <- 0.1
+increase_cut <- 1
 
 go_next <- T
 
@@ -263,6 +267,28 @@ g
 k
 
 g %>% summary
+k %>% summary
+
+k_index = which(abs(k) > 0.2 )
+k_candi = tibble(kmer = kmers[k_index], kappa = k[k_index], gc = sapply(kmers[k_index], kmer_gc))
+k_candi
+
+kmer_gc <- function(kmer){
+  #kmer = 'AGGAC'
+  c_n = stringr::str_count(kmer, 'C')
+  g_n = stringr::str_count(kmer, 'G')
+  
+  gc = (c_n + g_n)/nchar(kmer)
+  return(gc)
+}
+
+sapply(kmers[k_index], kmer_gc)
+
+data <- data.frame(k)
+p <- ggplot(data, aes(x = k)) + 
+  geom_density(size = 1) + theme_bw() +xlim(-0.5, 0.5)
+p
+
 
 #### save kmer kappa
 final_k_out = paste0(root_dir, '/data/k562_kmer_kappa.RData')
@@ -270,6 +296,16 @@ saveRDS(k, final_k_out)
 
 ### determine lambda1, lambda2, 
 #lambda1 = 0.1, lambda2 = 0.1, final pll = -2034635, original pll = -2062185
+#lambda1 = 10, lambda2 = 10, final pll = -2036080, original pll = -2062185
+#lambda1 = 10, lambda2 = 1, final pll = -2035855, original pll = -2062185
+#lambda1 = 100, lambda2 = 0.1, final pll = -2044092, original pll = -2062185
+
+
+### see kmers
+## path of kmer type
+kmers_in = paste0(root_dir, '/data/k562_kmers_types.RData')
+## read in 
+kmers = readRDS(kmers_in)
 
 
 ############################    testing    ###############################

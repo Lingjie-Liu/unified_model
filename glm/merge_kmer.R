@@ -5,7 +5,7 @@ library(GenomicRanges)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome)
 library(Matrix)
-
+library(ggplot2)
 
 root_dir = 'D:/unified_model'
 
@@ -72,3 +72,29 @@ kmers_matrix_out =  paste0(root_dir, '/data/k562_kmer_matrix.RData')
 
 saveRDS(kmers, kmers_out)
 saveRDS(Yji, kmers_matrix_out)
+
+
+
+
+
+###### some analysis of kmers
+## path of kmer type and kmer matrix
+kmers_in = paste0(root_dir, '/data/k562_kmers_types.RData')
+kmers_matrix_in =  paste0(root_dir, '/data/k562_kmer_matrix.RData')
+
+## read in 
+kmers = readRDS(kmers_in)
+kmers_matrix = readRDS(kmers_matrix_in)
+
+## check the distribution of the kmers means and sds
+mean <- apply(kmers_matrix, 2, mean)
+sd <- apply(kmers_matrix, 2, sd)
+
+mean_sd <- tibble(mean = mean, sd = sd, kmer_order = seq(1, length(kmers), 1)) %>% 
+  tidyr::pivot_longer(!kmer_order, names_to = "variable", values_to = "value")
+
+## plot 
+p <- ggplot(mean_sd, aes(x = kmer_order, y = value)) + 
+  geom_line(aes(color = variable), size = 0.55) + 
+  scale_color_manual(values = c("darkred", "steelblue")) + theme_bw()
+p
