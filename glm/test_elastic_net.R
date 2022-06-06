@@ -51,7 +51,7 @@ TBj <- (Yji * gb_demo$score) %>%
 # test[c(3582:4786),1] %>% sum
 # head(TBj)
 gene_order[gene_order == 1] %>% length
- 
+
 # # initialize k
 # k = rep(1,col_n)
 
@@ -107,26 +107,27 @@ calculate_VBj <- function(expNdot, Yji, gene_order){
 # calculate penalized likelihood
 calculate_likelihood <- function(SBj, k, TBj, UBj, lambda1, lambda2){
   item1 <- (-1)*SBj$score*log(UBj)
-
+  
   item2 <- TBj %*% k
   
   #penalty <- lambda1 * sum(abs(k)) + lambda2 * sum(k^2)
   penalty <- lambda1 * ((1-lambda2) * sum(abs(k)) + lambda2 * sum(k^2))
   
   likelihood <- sum(item1-item2) - penalty
-
+  
   return(likelihood)
 }
 
+
 # calculate gradient 
-calculate_gradient <- function(lambda, alphaj, VBj, TBj){
+calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1){
   #head(VBj)
   #head(alphaj)
   item1 <- as.vector(lambda * alphaj) * VBj
   #head(item1)
   #head(TBj)
-
-  gradient <- colSums(item1 - TBj)
+  
+  gradient <- colSums(item1 - TBj) - lambda1
   #head(gradient)
   return(gradient)
 }
@@ -142,7 +143,7 @@ UBj = calculate_UBj(expNdot, gene_order)
 alphaj = calculate_alphaj(lambda, SBj, UBj)
 VBj = calculate_VBj(expNdot, Yji, gene_order)
 L0  = calculate_likelihood(SBj, k, TBj, UBj, lambda1, lambda2)
-g = calculate_gradient(lambda, alphaj, VBj, TBj)
+g = calculate_gradient(lambda, alphaj, VBj, TBj, lambda1)
 t2<-Sys.time()
 print(t2 - t1)
 ################
@@ -234,7 +235,7 @@ while(go_next == T){
   alphaj = calculate_alphaj(lambda, SBj, UBj)
   VBj = calculate_VBj(expNdot, Yji, gene_order)
   
-  g = calculate_gradient(lambda, alphaj, VBj, TBj)
+  g = calculate_gradient(lambda, alphaj, VBj, TBj, lambda1)
   
   #record log likelihood
   total_l = c(total_l, L)
@@ -249,84 +250,11 @@ k
 g %>% summary
 k %>% summary
 
-k1 = k
+k2 = k
 
-k_index = which(abs(k) > 0.2 )
-k_candi = tibble(kmer = kmers[k_index], kappa = k[k_index], gc = sapply(kmers[k_index], kmer_gc))
-k_candi
+(k2-k1) %>% summary
 
-kmer_gc <- function(kmer){
-  #kmer = 'AGGAC'
-  c_n = stringr::str_count(kmer, 'C')
-  g_n = stringr::str_count(kmer, 'G')
-  
-  gc = (c_n + g_n)/nchar(kmer)
-  return(gc)
-}
+head(k1)
+head(k2)
 
-sapply(kmers[k_index], kmer_gc)
-
-data <- data.frame(k)
-p <- ggplot(data, aes(x = k)) + 
-  geom_density(size = 1) + theme_bw() +xlim(-0.5, 0.5)
-p
-
-
-#### save kmer kappa
-final_k_out = paste0(root_dir, '/data/k562_kmer_kappa.RData')
-saveRDS(k, final_k_out)
-
-### determine lambda1, lambda2, 
-#lambda1 = 0.1, lambda2 = 0.1, final pll = -2034635, original pll = -2062185
-#lambda1 = 10, lambda2 = 10, final pll = -2036080, original pll = -2062185
-#lambda1 = 10, lambda2 = 1, final pll = -2035855, original pll = -2062185
-#lambda1 = 100, lambda2 = 0.1, final pll = -2044092, original pll = -2062185
-
-
-### see kmers
-## path of kmer type
-kmers_in = paste0(root_dir, '/data/k562_kmers_types.RData')
-## read in 
-kmers = readRDS(kmers_in)
-
-
-############################    testing    ###############################
-# initialize original k vector to 0
-k = rep(0, col_n)
-k
-t1<-Sys.time()
-m <- Matrix::sparseMatrix(
-  i = c(1:2),
-  j = c(1,3),
-  x = 1,
-  dims = c(row_n,col_n)
-)
-
-y <- m *  gb_demo$score
-t2<-Sys.time()
-print(t2 - t1)
-
-print(object.size(y), unit = "GB")
-
-
-a = matrix(c(1,2,3,4,5,6), nrow =2, ncol = 3)
-b = c(4,2)
-a * b
-
-
-set.seed(1)
-skus <-Matrix(as.matrix(data.frame(
-  orderNum=sample(2,1e,TRUE),
-  sku=sample(2,6,TRUE))), sparse=TRUE)
-skus %*% rep(1,3)
-
-Matrix.utils::aggregate.Matrix(skus, groupings = c(1,1,1,2,2,3),fun='sum')
-
-
-v <- sample(1024)
-m  <- Matrix(sample(c(0, 1), length(v) ^ 2, T, c(.99, .01)),
-             length(v) ^ 2, length(v), sparse = T)
-tic("dense")
-x <- m %*% v
-
-Yji %*% v
+identical(k1, k2)
