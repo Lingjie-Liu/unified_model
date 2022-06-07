@@ -2,8 +2,9 @@ library(tidyverse)
 library(dplyr)
 library(GenomicRanges)
 library(Matrix)
+library(ggpubr)
 
-root_dir = '/Users/ling/unified_model'
+root_dir = 'D:/unified_model'
 
 # # path of gb windows grng with all features, read in 
 gb_ft_in = paste0(root_dir, '/data/k562_features_matrix.RData')
@@ -51,9 +52,9 @@ TBj <- (Yji * gb_demo$score) %>%
 # test[c(3582:4786),1] %>% sum
 # head(TBj)
 gene_order[gene_order == 1] %>% length
- 
-# # initialize k
-# k = rep(1,col_n)
+
+# initialize k
+#k = rep(0, 1024)
 
 # calculate e(-k.yji)
 calculate_expNdot <- function(k, Yji){
@@ -107,42 +108,57 @@ calculate_VBj <- function(expNdot, Yji, gene_order){
 # calculate penalized likelihood
 calculate_likelihood <- function(SBj, k, TBj, UBj, lambda1, lambda2){
   item1 <- (-1)*SBj$score*log(UBj)
-
+  
   item2 <- TBj %*% k
   
   #penalty <- lambda1 * sum(abs(k)) + lambda2 * sum(k^2)
-  penalty <- lambda1 * ((1-lambda2) * sum(abs(k)) + lambda2 * sum(k^2))
+  penalty <- lambda1 * (lambda2 * sum(abs(k)) + (1-lambda2)/2 * sum(k^2))
   
   likelihood <- sum(item1-item2) - penalty
-
+  
   return(likelihood)
 }
 
+
 # calculate gradient 
-calculate_gradient <- function(lambda, alphaj, VBj, TBj){
+calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1, lambda2, k){
   #head(VBj)
   #head(alphaj)
   item1 <- as.vector(lambda * alphaj) * VBj
   #head(item1)
-  #head(TBj)
-
-  gradient <- colSums(item1 - TBj)
+  #head(TBj) 
+  
+  ## change gradient due to penalized likelihood
+  penalty_g <- function(nth_k, lambda1, lambda2){
+    if(nth_k == 0){
+      p_g = 0 # treat derivative(|k1|, k1=0) = 0
+    }else{
+      p_g = nth_k/abs(nth_k) * lambda1 * lambda2 + lambda1 * (1 - lambda2) * nth_k
+    }
+    return(p_g)
+  }
+  
+  p_gradient <- sapply(k, penalty_g, lambda1, lambda2) 
+  #head(p_gradient) 
+  
+  gradient <- colSums(item1 - TBj) - p_gradient
   #head(gradient)
+  
   return(gradient)
 }
 
 ##### time test: 0.27s ####
 # initialize k, lambda1, lambda2
 k = rep(0, ncol(Yji))
-lambda1 = 1
-lambda2 = 0.9
+lambda1 = 50
+lambda2 = 0.95
 t1<-Sys.time()
 expNdot <- calculate_expNdot(k, Yji)
 UBj = calculate_UBj(expNdot, gene_order)
 alphaj = calculate_alphaj(lambda, SBj, UBj)
 VBj = calculate_VBj(expNdot, Yji, gene_order)
 L0  = calculate_likelihood(SBj, k, TBj, UBj, lambda1, lambda2)
-g = calculate_gradient(lambda, alphaj, VBj, TBj)
+g = calculate_gradient(lambda, alphaj, VBj, TBj, lambda1, lambda2, k)
 t2<-Sys.time()
 print(t2 - t1)
 ################
@@ -150,9 +166,9 @@ print(t2 - t1)
 
 
 ##### GA #####
-learning_size = 0.00001
+learning_size = 0.0001
 
-increase_cut <- 1
+increase_cut <- 0.01
 
 go_next <- T
 
@@ -234,7 +250,7 @@ while(go_next == T){
   alphaj = calculate_alphaj(lambda, SBj, UBj)
   VBj = calculate_VBj(expNdot, Yji, gene_order)
   
-  g = calculate_gradient(lambda, alphaj, VBj, TBj)
+  g = calculate_gradient(lambda, alphaj, VBj, TBj, lambda1, lambda2, k)
   
   #record log likelihood
   total_l = c(total_l, L)
@@ -243,15 +259,55 @@ while(go_next == T){
   
 }
 
-g
-k
-
 g %>% summary
 k %>% summary
 
-k1 = k
+data <- data.frame(k = k)
+p <- ggplot(data, aes(x = k)) + 
+  geom_density(size = 1) + theme_bw() +xlim(-0.5, 0.5)
+p
 
-k_index = which(abs(k) > 0.2 )
+#### plot k
+plot_g <- tibble(step = rep(c("first_step", "last_step"), each = length(k)), 
+                 gradient = c(total_g[1:length(k)], g))
+
+ggplot(plot_g, aes(x = gradient, fill = step)) + xlim(-400, 400)+ 
+  geom_density(alpha=.8)+ theme_classic()+scale_fill_manual( values= c("#00AFBB", "#FFDB6D"))
+
+plot_l = tibble(step = seq(1, length(total_l), 1), 
+                penalized_likelihood = total_l)
+ggplot(plot_l, aes(x = step, y = penalized_likelihood)) + 
+  geom_line(size = 1) + theme_bw()
+
+# p <- ggpubr::ggviolin(plot_g, x = "step", y = "gradient", fill = "step",
+#               palette = c("#00AFBB", "#FFDB6D"),
+#               position=position_dodge(1.05),
+#               #add = "boxplot",
+#               add = "mean_sd",
+#               lwd = 6)+ ylim(-200, 200)
+# p
+
+
+#### save kmer kappa
+final_k_out = paste0(root_dir, '/data/kmer_kappa/chr22_kappa_50_95.RData')
+saveRDS(k, final_k_out)
+
+### determine lambda1, lambda2
+#lambda1 = 0, lambda2 = 0.95, final pll = -2034437, original pll = -2062185
+#lambda1 = 1, lambda2 = 0.95, final pll = -2034606, original pll = -2062185
+#lambda1 = 10, lambda2 = 0.95, final pll = -2035729, original pll = -2062185
+#lambda1 = 50, lambda2 = 0.95, final pll = -2039400, original pll = -2062185
+#lambda1 = 100, lambda2 = 0.95, final pll = -2042625, original pll = -2062185
+#lambda1 = 150, lambda2 = 0.95, final pll = -2045114, original pll = -2062185
+
+
+### see kmers
+## path of kmer type
+kmers_in = paste0(root_dir, '/data/k562_kmers_types.RData')
+## read in 
+kmers = readRDS(kmers_in)
+### check kmer candidates ###
+k_index = which(abs(k) > 0.3 )
 k_candi = tibble(kmer = kmers[k_index], kappa = k[k_index], gc = sapply(kmers[k_index], kmer_gc))
 k_candi
 
@@ -264,30 +320,6 @@ kmer_gc <- function(kmer){
   return(gc)
 }
 
-sapply(kmers[k_index], kmer_gc)
-
-data <- data.frame(k)
-p <- ggplot(data, aes(x = k)) + 
-  geom_density(size = 1) + theme_bw() +xlim(-0.5, 0.5)
-p
-
-
-#### save kmer kappa
-final_k_out = paste0(root_dir, '/data/k562_kmer_kappa.RData')
-saveRDS(k, final_k_out)
-
-### determine lambda1, lambda2, 
-#lambda1 = 0.1, lambda2 = 0.1, final pll = -2034635, original pll = -2062185
-#lambda1 = 10, lambda2 = 10, final pll = -2036080, original pll = -2062185
-#lambda1 = 10, lambda2 = 1, final pll = -2035855, original pll = -2062185
-#lambda1 = 100, lambda2 = 0.1, final pll = -2044092, original pll = -2062185
-
-
-### see kmers
-## path of kmer type
-kmers_in = paste0(root_dir, '/data/k562_kmers_types.RData')
-## read in 
-kmers = readRDS(kmers_in)
 
 
 ############################    testing    ###############################
