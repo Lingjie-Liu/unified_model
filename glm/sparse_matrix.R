@@ -4,7 +4,7 @@ library(GenomicRanges)
 library(Matrix)
 library(ggpubr)
 
-root_dir = 'D:/unified_model'
+root_dir = '/Users/ling/unified_model'
 
 # # path of gb windows grng with all features, read in 
 gb_ft_in = paste0(root_dir, '/data/k562_features_matrix.RData')
@@ -150,8 +150,8 @@ calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1, lambda2, k){
 ##### time test: 0.27s ####
 # initialize k, lambda1, lambda2
 k = rep(0, ncol(Yji))
-lambda1 = 50
-lambda2 = 0.95
+lambda1 = 200
+lambda2 = 0.8
 t1<-Sys.time()
 expNdot <- calculate_expNdot(k, Yji)
 UBj = calculate_UBj(expNdot, gene_order)
@@ -168,7 +168,7 @@ print(t2 - t1)
 ##### GA #####
 learning_size = 0.0001
 
-increase_cut <- 0.01
+increase_cut <- 0.0000001
 
 go_next <- T
 
@@ -222,7 +222,7 @@ while(go_next == T){
     go_next <- F
   }
   
-  while(go_next == T & (L-L0)>0 & (L-L0)<increase_cut){
+  while(go_next == T & (L-L0)>0 & (L-L0)<increase_cut/10){
     print("Increase learning_size")
     change_step <- T
     learning_size = learning_size*2
@@ -261,6 +261,7 @@ while(go_next == T){
 
 g %>% summary
 k %>% summary
+sum(abs(k) < 0.05)
 
 data <- data.frame(k = k)
 p <- ggplot(data, aes(x = k)) + 

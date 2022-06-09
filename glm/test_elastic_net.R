@@ -3,7 +3,7 @@ library(dplyr)
 library(GenomicRanges)
 library(Matrix)
 
-root_dir = '/Users/ling/unified_model'
+root_dir = 'D:/unified_model'
 
 # # path of gb windows grng with all features, read in 
 gb_ft_in = paste0(root_dir, '/data/k562_features_matrix.RData')
@@ -53,7 +53,7 @@ TBj <- (Yji * gb_demo$score) %>%
 gene_order[gene_order == 1] %>% length
 
 # # initialize k
-# k = rep(1,col_n)
+k = rep(1, 1024)
 
 # calculate e(-k.yji)
 calculate_expNdot <- function(k, Yji){
@@ -111,7 +111,7 @@ calculate_likelihood <- function(SBj, k, TBj, UBj, lambda1, lambda2){
   item2 <- TBj %*% k
   
   #penalty <- lambda1 * sum(abs(k)) + lambda2 * sum(k^2)
-  penalty <- lambda1 * ((1-lambda2) * sum(abs(k)) + lambda2 * sum(k^2))
+  penalty <- lambda1 * (lambda2 * sum(abs(k)) + (1-lambda2)/2 * sum(k^2))
   
   likelihood <- sum(item1-item2) - penalty
   
@@ -120,23 +120,23 @@ calculate_likelihood <- function(SBj, k, TBj, UBj, lambda1, lambda2){
 
 
 # calculate gradient 
-calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1){
+calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1, lambda2){
   #head(VBj)
   #head(alphaj)
   item1 <- as.vector(lambda * alphaj) * VBj
   #head(item1)
   #head(TBj)
   
-  gradient <- colSums(item1 - TBj) - lambda1
-  #head(gradient)
+  gradient <- colSums(item1 - TBj)
+  head(gradient)
   return(gradient)
 }
 
 ##### time test: 0.27s ####
 # initialize k, lambda1, lambda2
 k = rep(0, ncol(Yji))
-lambda1 = 1
-lambda2 = 0.9
+lambda1 = 10
+lambda2 = 0.95
 t1<-Sys.time()
 expNdot <- calculate_expNdot(k, Yji)
 UBj = calculate_UBj(expNdot, gene_order)
@@ -207,7 +207,7 @@ while(go_next == T){
     go_next <- F
   }
   
-  while(go_next == T & (L-L0)>0 & (L-L0)<increase_cut){
+  while(go_next == T & (L-L0)>0 & (L-L0)<increase_cut*2){
     print("Increase learning_size")
     change_step <- T
     learning_size = learning_size*2
@@ -250,11 +250,31 @@ k
 g %>% summary
 k %>% summary
 
-k2 = k
+tail(g)
+tail(k)
+tail(total_l)
 
-(k2-k1) %>% summary
+k_altered = k
+g_altered = g
 
-head(k1)
-head(k2)
+data <- data.frame( k =k2)
+p <- ggplot(data, aes(x = k)) + 
+  geom_density(size = 1) + theme_bw() +xlim(-0.5, 0.5)
+p
+
+(exp(k2-k1)) %>% summary
+
+data <- data.frame( kmer_order = seq(1, length(k1), 1), res = exp(k2 - k1))
+p <- ggplot(data, aes(x = kmer_order, y = res)) + 
+  geom_line(size = 0.55)  + theme_bw() + ylab("exp(k2 - k1)")
+p
+
+(exp(k2-k1)) %>% summary
+
+head(k1_0)
+head(k2_0)
+
+tail(g1)
+tail(g2)
 
 identical(k1, k2)

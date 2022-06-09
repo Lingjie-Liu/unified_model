@@ -1,4 +1,4 @@
-## This script is to show the hyperparameters of the elastic net #######
+## This script is to visualize the hyperparameters of the elastic net #######
 library(tidyverse)
 library(dplyr)
 library(Matrix)
