@@ -6,6 +6,7 @@ library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome)
 library(Matrix)
 library(ggplot2)
+library(MatrixExtra)
 
 root_dir = 'D:/unified_model'
 
@@ -98,3 +99,52 @@ p <- ggplot(mean_sd, aes(x = kmer_order, y = value)) +
   geom_line(aes(color = variable), size = 0.55) + 
   scale_color_manual(values = c("darkred", "steelblue")) + theme_bw()
 p
+
+
+####### normalize the values of kmers and add G+C ############
+kmers_matrix_in =  paste0(root_dir, '/data/k562_kmer_matrix.RData')
+kmers_matrix = readRDS(kmers_matrix_in)
+
+# add gc content 
+seqlevelsStyle(gb) <- "UCSC"
+gc <- Repitools::gcContentCalc(gb, organism = Hsapiens, verbose = TRUE)
+
+# add gc column into kmer matrix 
+kmers_gc_matrix <- MatrixExtra::cbind2(kmers_matrix, gc)
+
+# # scale the kmer-gc combined matrix, turn sparse matrix into matrix
+# scaled_kmer_gc_matrix <- scale(kmers_gc_matrix)[,]
+# scaled_kmer_gc_matrix[1,]
+
+# save the kmer-gc combined matrix
+kmers_gc_matrix_out <- paste0(root_dir, '/data/k562_kmer_gc_matrix.RData')
+saveRDS(kmers_gc_matrix, kmers_gc_matrix_out)
+
+
+
+
+####### testing and demo ###############
+# m <- Matrix::sparseMatrix(
+#   i = c(1:4),
+#   j = c(1:4),
+#   x = 1,
+#   dims = c(4,4)
+# )
+# 
+# m
+# 
+# scaled_m <- scale(m)[,]
+# 
+# n <- Matrix::sparseMatrix(
+#   i = c(1:3),
+#   j = c(1,1,1),
+#   x = 1,
+#   dims = c(4,1)
+# )
+# n  
+# 
+# scale(kmers_matrix)
+# 
+# n = c(1,2,3,4)
+# a = MatrixExtra::cbind2(m , n)
+# a

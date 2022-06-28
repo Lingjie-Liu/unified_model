@@ -1,82 +1,344 @@
-## This script is to visualize the hyperparameters of the elastic net #######
+## This script is to evaluate the hyperparameters of the elastic net #######
+## after running the cross validation ######################################
 library(tidyverse)
 library(dplyr)
 library(Matrix)
 library(ggpubr)
+library(ggplot2)
+library(viridis)
+library(hrbrthemes)
+library(dplyr)
 
 root_dir = 'D:/unified_model'
 
-### determine lambda1, lambda2
-#lambda1 = 0, lambda2 = 0.95, final pll = -2034437, original pll = -2062185
-#lambda1 = 1, lambda2 = 0.95, final pll = -2034606, original pll = -2062185
-#lambda1 = 10, lambda2 = 0.95, final pll = -2035729, original pll = -2062185
-#lambda1 = 50, lambda2 = 0.95, final pll = -2039400, original pll = -2062185
-#lambda1 = 100, lambda2 = 0.95, final pll = -2042625, original pll = -2062185
-#lambda1 = 150, lambda2 = 0.95, final pll = -2045114, original pll = -2062185
+## path of the kappa objects from hundreds combinations of lambda 1&2
+#kappa_ob_in = paste0(root_dir, '/kmer/kappa_object')
+#kappa_ob_in = paste0(root_dir, '/kmer/gc_kappa_object')
+#kappa_ob_in = paste0(root_dir, '/kmer/gc_lambda1_object')
+kappa_ob_in = paste0(root_dir, '/kmer/gc_lambda1_lambda2_object')
+## path of generated testing kmer covariates matrix 
+#test_in = paste0(root_dir, '/kmer/dataset/k562_test_kmer_matrix.RData')
+test_in = paste0(root_dir, '/kmer/dataset/k562_test_kmer_gc_matrix.RData')
+## path of split gb for testing dataset
+test_gb_in = paste0(root_dir, '/kmer/gb/k562_test_gb.RData')
 
-## plot likelihood change
-lambda1 = c(0, 1, 10, 50, 100, 150) %>% as.character
-lambda2 = '0.95'
-mle = c(-2034437, -2034606, -2035729, -2039400, -2042625, -2045114)
+## read in kmer matrix data set 
+test_set = readRDS(test_in)
+## read in gb data set 
+test_gb = readRDS(test_gb_in)
+## read in all the kappa objects
+kappa_ob = list.files(path = kappa_ob_in, pattern = NULL, all.files = F, full.names = T) %>% 
+  map(readRDS)
 
-mle_df = tibble(lambda1 =factor(lambda1, level = lambda1),
-                mle = mle)
+# source the file that stores main glm functions
+source(paste0(root_dir, '/glm/main_glm_functions.R'))
 
-p <-ggplot(mle_df,  aes(x = lambda1, y = mle,  group = 1))+
-  geom_line(linetype = "twodash", size = 0.6)+ geom_point(size = 3)+ 
-  theme_bw() + ggtitle(paste0("lambda2 = ", lambda2))
+# gb <- test_gb
+# Yji <- test_set
+
+## use all kappa object to predict the proseq reads count
+predict_rc <- function(k, gb, Yji){
+  #### get predicted reads count check 
+  # calculate lambda
+  gene_rc <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(score = sum(score))
+  gene_length <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(bin_num = dplyr::n())
+  lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
+  
+  # calculation of SBj
+  SBj <- gene_rc
+  
+  #calculation of expNdot
+  gene_order = gb$ensembl_gene_id %>% 
+    match(., unique(.)) 
+  
+  # get zeta
+  expNdot = calculate_expNdot(k, Yji)
+  UBj = calculate_UBj(expNdot, gene_order)
+  alphaj = calculate_alphaj(lambda, SBj, UBj)
+  zeta <- (1/expNdot) %>% as.vector()
+  #head(zeta)
+  
+  ## get unpenalized likelihood
+  item1 <- SBj$score*(log(SBj$score) - log(UBj))
+  TBj <- (Yji *gb$score) %>% 
+    Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
+  item2 <- TBj %*% k
+  UNP_likelihood <- sum(item1-item2-SBj$score)
+
+  
+  # get data frame of predicted read counts vs. true read counts
+  alphaj <- rep(as.vector(alphaj), gene_length$bin_num)
+  predicted = lambda * alphaj / zeta
+  predicted_true = tibble(predicted = predicted , true = gb$score)
+  ### get only predicted_true rc data frame only when true > 0
+  #predicted_true = predicted_true %>% dplyr::filter(true > 0)
+  
+  # get the least square error
+  mse = mean((predicted_true$true - predicted_true$predicted)^2)
+  
+  ### correlation of predicted read counts vs. true read counts
+  r = cor(predicted_true, method = c("spearman"))
+  r = r[1,2]
+  r2 = r^2
+  
+  ## give a return that records mse and r2
+  out <- list(mse = mse,
+              r2 = r2,
+              unpl = UNP_likelihood)
+  
+  return(out)
+  
+}
+
+# get the kappa in list from the kappa objects
+all_kappas <- lapply(kappa_ob, function(x) x$k)
+unpl_mse_r2 = lapply(all_kappas, predict_rc, gb = test_gb, Yji = test_set)
+
+all_lambda1 <- lapply(kappa_ob, function(x) x$lambda1) %>% unlist()
+all_lambda2 <- lapply(kappa_ob, function(x) x$lambda2) %>% unlist()
+all_lkh <- lapply(kappa_ob, function(x) x$total_l[2]) %>% unlist()
+all_unpl <-  lapply(unpl_mse_r2, function(x) x$unpl) %>% unlist()
+all_mse <-  lapply(unpl_mse_r2, function(x) x$mse) %>% unlist()
+all_r2 <-  lapply(unpl_mse_r2, function(x) x$r2) %>% unlist()
+
+## get numbers of the nonzero 
+select_kappa <- function(k, k_cut){
+  return(sum(abs(k) > k_cut))
+}
+
+all_nonzero <- lapply(all_kappas, select_kappa, 0.01) %>% unlist()
+
+
+## plot aic
+all_df = tibble(lambda1 = all_lambda1,
+                lambda2 = as.factor(all_lambda2),
+                mle = all_lkh,
+                mse = all_mse,
+                r2 = all_r2, 
+                unpl = all_unpl,
+                nonzero = all_nonzero) %>% 
+  dplyr::mutate(aic = 2*(nonzero - mle))
+
+p <- ggplot(all_df, aes(x = log10(lambda1), y = aic, color = lambda2, fill = lambda2)) +
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = T)
+
+p
+
+## plot mse change
+p <-ggplot(all_df,  aes(x = log10(lambda1), y = mse, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
 p
 
 
-## plot k 
-kappa_dir = paste0(root_dir, '/data/kmer_kappa/')
-all_kappa <- list.files(path = kappa_dir, pattern = "*.RData", full.names = T) %>%
-  map(readRDS) # give a list that contains all the histone files 
-names(all_kappa) <- list.files(path = kappa_dir, pattern = "*.RData") %>% 
-  stringr::str_split(., '_') %>%  # split each name of the histone files
-  purrr::map_chr(3) # only return the first element of the list
-all_kappa <- dplyr::bind_cols(all_kappa) %>% 
-  dplyr::relocate('50', .before = '100')
+## plot r2 change
+p <-ggplot(all_df,  aes(x = log10(lambda1), y = r2, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
+
+## plot kappa that are nonzeros
+p <-ggplot(all_df,  aes(x = log10(lambda1),  y = nonzero, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
+
+## plot mle & unpenalized likelihood
+p <-ggplot(all_df,  aes(x = log10(lambda1), y = mle, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
+
+p <-ggplot(all_df,  aes(x = log10(lambda1), y = unpl, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
 
 
-## plot AIC
-sd_mle = mle - min(mle) + 1
-k_cut <- 0.2 ### define larger than 0.1 as the used parameter
-calculate_aic <- function(k_v, k_cut, sd_mle){
-  para_n <- sum(abs(k_v) >  k_cut)
-  aic = 2*para_n - 2*log(sd_mle)
+
+
+########### another way to calculate mse
+## use some 'powerful' elements of kappa object to predict the proseq reads count
+predict_rc_withSlk <- function(k, gb, Yji, mse_cut){
+  # gb <- test_gb
+  # Yji <- test_set
+  # k <- all_kappas[[1]]
+  # mse_cut <- 100
+  # 
+  #### get predicted reads count check 
+  # calculate lambda
+  gene_rc <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(score = sum(score))
+  gene_length <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(bin_num = dplyr::n())
+  lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
   
-  return(list(aic = aic, para_n = para_n))
+  # calculation of SBj
+  SBj <- gene_rc
+  
+  #calculation of expNdot
+  gene_order = gb$ensembl_gene_id %>% 
+    match(., unique(.)) 
+  
+  # use selected elements of kappa instead of full set of kappa
+  sorted_k <- sort(abs(k), index.return = T, decreasing = F) # sort the absolute values of k by a ascending order
+  small_k_index = sorted_k$ix[c(1: (length(k) - mse_cut))]
+  k[small_k_index] <- 0
+  
+  # get zeta
+  expNdot = calculate_expNdot(k, Yji)
+  UBj = calculate_UBj(expNdot, gene_order)
+  alphaj = calculate_alphaj(lambda, SBj, UBj)
+  zeta <- (1/expNdot) %>% as.vector()
+  #head(zeta)
+  
+  ## get unpenalized likelihood
+  item1 <- SBj$score*(log(SBj$score) - log(UBj))
+  TBj <- (Yji *gb$score) %>% 
+    Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
+  item2 <- TBj %*% k
+  UNP_likelihood <- sum(item1-item2-SBj$score)
+  
+  # get data frame of predicted read counts vs. true read counts
+  alphaj <- rep(as.vector(alphaj), gene_length$bin_num)
+  predicted = lambda * alphaj / zeta
+  predicted_true = tibble(predicted = predicted , true = gb$score)
+  
+  # get the least square error
+  mse = mean((predicted_true$true - predicted_true$predicted)^2)
+  
+  ### correlation of predicted read counts vs. true read counts
+  r = cor(predicted_true, method = c("spearman"))
+  r = r[1,2]
+  r2 = r^2
+  
+  ## give a return that records mse and r2
+  out <- list(mse = mse,
+              r2 = r2,
+              unpl = UNP_likelihood)
+  
+  return(out)
+  
 }
-aic = c()
-para_n = c()
-for(i in c(1:length(sd_mle))){
-  score = calculate_aic(all_kappa[, i], k_cut, sd_mle[i])
-  aic = c(aic, score$aic)
-  para_n = c(para_n, score$para_n)
-}
 
-aic_df = tibble(lambda1 =factor(lambda1, level = lambda1),
-                AIC = aic)
-ggplot(aic_df, aes(x = lambda1, y = AIC,  group = 1))+
-  geom_line(linetype = "twodash", size = 0.6)+ geom_point(size = 3)+ 
-  theme_bw() + ggtitle(paste0("lambda2 = ", lambda2))
+# get the kappa in list from the kappa objects
+all_kappas <- lapply(kappa_ob, function(x) x$k)
+unpl_mse_r2 = lapply(all_kappas, predict_rc_withSlk, 
+                     gb = test_gb, Yji = test_set, mse_cut = 100)
 
-## plot the number of selected parameters
-para_df = tibble(lambda1 =factor(lambda1, level = lambda1),
-                 para_n = para_n)
-ggplot(para_df, aes(x = lambda1, y = para_n,  group = 1))+
-  geom_line(linetype = "twodash", size = 0.6)+ geom_point(size = 3)+ 
-  theme_bw() + ggtitle(paste0("lambda2 = ", lambda2)) + 
-  ylab("selected kmers") 
+all_lambda1 <- lapply(kappa_ob, function(x) x$lambda1) %>% unlist()
+all_lambda2 <- lapply(kappa_ob, function(x) x$lambda2) %>% unlist()
+all_lkh <- lapply(kappa_ob, function(x) x$total_l[2]) %>% unlist()
+all_unpl <-  lapply(unpl_mse_r2, function(x) x$unpl) %>% unlist()
+all_mse <-  lapply(unpl_mse_r2, function(x) x$mse) %>% unlist()
+all_r2 <-  lapply(unpl_mse_r2, function(x) x$r2) %>% unlist()
+
+all_df = tibble(lambda1 = all_lambda1,
+                lambda2 = as.factor(all_lambda2),
+                mle = all_lkh,
+                mse = all_mse,
+                r2 = all_r2, 
+                unpl = all_unpl,
+                nonzero = all_nonzero) %>% 
+  dplyr::mutate(aic = 2*(nonzero - mle))
+
+## plot mse change
+p <-ggplot(all_df,  aes(x = log10(lambda1), y = mse, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
 
 
-kappa_df <- all_kappa %>% 
-  tidyr::pivot_longer(cols = dplyr::everything(), 
-                      names_to = "lambda1", values_to = "kappa")
+## plot r2 change
+p <-ggplot(all_df,  aes(x = log10(lambda1), y = r2, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
 
-## plot correlation between kappas
-GGally::ggcorr(all_kappa, label = TRUE, label_alpha = TRUE, method = c("pairwise", "pearson"))
+
+data <-  tibble(lambda1 = all_lambda1,
+                lambda2 = all_lambda2,
+                mse = all_mse,
+                r2 = all_r2) 
+p <- plotly::plot_ly(data, x = ~log10(lambda1), y = ~lambda2,  z = ~mse, 
+                     marker = list(color = ~mse, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) 
+p
+
+p <- plotly::plot_ly(data, x = ~log10(lambda1), y = ~lambda2,  z = ~r2, 
+                     marker = list(color = ~r2, colorscale = c('#FFE1A1', '#683531'), showscale = TRUE)) 
+p
+
+# SEE GRADIENT
+all_g <- lapply(kappa_ob, function(x) x$g)
+last_g <- lapply(kappa_ob, function(x) tail(x$g, n = ncol(test_set)))
+first_g <- lapply(kappa_ob, function(x) x$g[1:(ncol(test_set))])
+
+check_last_g <- last_g %>% 
+  lapply(abs) %>%  
+  lapply(quantile, probs = 0.99) %>% 
+  as.numeric()
+
+check_first_g <- first_g %>% 
+  lapply(abs) %>%  
+  lapply(quantile, probs = 0.99) %>% 
+  as.numeric()
+
+g_df <- tibble(first_g = check_first_g, last_g = check_last_g, 
+               lambda1 = as.factor(log10(all_lambda1)),
+               lambda2 = all_lambda2)
+p <- ggplot(g_df) +
+  geom_segment(aes(x=lambda2, xend = lambda2, y=first_g, yend=last_g), color = "grey") +
+  geom_point(aes(x=lambda2, y=first_g), color=rgb(0.2,0.7,0.1,0.5), size = 3.5) +
+  geom_point(aes(x=lambda2, y=last_g), color=rgb(0.7,0.2,0.1,0.5), size = 3.5) +
+  theme_bw()+ facet_grid(. ~ lambda1) + xlab("lambda2") + ylab("gradient")
+p
+
+## see gc gradient 
+last_gc_g = lapply(last_g, function(x) x[1025]) %>% as.numeric()
+first_gc_g = lapply(first_g, function(x) x[1025]) %>% as.numeric()
+
+gc_g_df <- tibble(first_g = first_gc_g, last_g = last_gc_g, 
+               lambda1 = as.factor(log10(all_lambda1)),
+               lambda2 = as.factor(all_lambda2))
+p <- ggplot(gc_g_df) +
+  geom_segment(aes(x=lambda2, xend = lambda2, y=first_g, yend=last_g), color = "grey") +
+  geom_point(aes(x=lambda2, y=first_g), color=rgb(0.2,0.7,0.1,0.5), size = 2) +
+  geom_point(aes(x=lambda2, y=last_g), color=rgb(0.7,0.2,0.1,0.5), size = 2) +
+  theme_bw()+ facet_grid(. ~ lambda1) + 
+  xlab("lambda2") + ylab("gradient") +theme(axis.text.x=element_blank())
+p
+
+
+
+
+###############################################################################
+
+
+
+
+
+gc_k <- lapply(all_kappas, function(x) x[1025]) %>% unlist()
+gc_k
+
+data <- tibble(lambda1 = all_lambda1, lambda2 = as.factor(all_lambda2), gc_k = gc_k)
+p <-ggplot(data,  aes(x = log10(lambda1), y = gc_k, color = lambda2, fill = lambda2))+
+  geom_line(size = 1) +geom_point(size = 2) +
+  theme_classic() +  scale_color_viridis(discrete = TRUE)
+p
+
+a = tibble(lambda1 = all_lambda1, lambda2 = all_lambda2, last_k = last_k)
+a
 
 
 
@@ -112,65 +374,7 @@ cor(k_candi[,c(2, 3)], method = c("spearman"))
 #               lwd = 1)+ ylim(-0.5, 0.5)
 # p
 
-########### predictivity 
-## path of kmer covariate matrix
-Yji_in = paste0(root_dir, '/data/k562_kmer_matrix.RData')
-## path of gb windows grng with all features, read in 
-gb_ft_in = paste0(root_dir, '/data/k562_features_matrix.RData')
 
-# read in gb and kappa matrix
-gb <- readRDS(gb_ft_in)
-Yji <- readRDS(Yji_in)
-
-#### predictivity check 
-# calculate lambda: gb is binned into windows, so length l should be the number 
-# of windows per gb
-gene_rc <- gb %>% 
-  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
-  dplyr::group_by(ensembl_gene_id) %>% 
-  dplyr::summarize(score = sum(score))
-gene_length <- gb %>% 
-  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
-  dplyr::group_by(ensembl_gene_id) %>% 
-  dplyr::summarize(bin_num = dplyr::n())
-lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
-
-SBj <- gene_rc
-
-######## check fitting
-#calculation of expNdot
-gene_order = gb$ensembl_gene_id %>% 
-  match(., unique(.)) 
-
-calculate_expNdot <- function(k, Yji){
-  power <- Yji %*% k 
-  expNdot <- exp(-1 * power)
-  
-  return(expNdot)
-}
-
-# calculate UBj
-calculate_UBj <- function(expNdot, gene_order){
-  UBj <- expNdot %>% 
-    Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
-  return(UBj)
-}
-
-# calculate alphaj
-calculate_alphaj <- function(lambda, SBj, UBj){
-  alphaj <- SBj$score / (lambda * UBj)
-  
-  return(alphaj)
-}
-
-
-k = all_kappa %>% dplyr::select('150') %>% dplyr::pull()
-expNdot = calculate_expNdot(k, Yji)
-UBj = calculate_UBj(expNdot, gene_order)
-alphaj = calculate_alphaj(lambda, SBj, UBj)
-# calculate site-specific elongation rate
-zeta <- (1/expNdot) %>% as.vector()
-head(zeta)
 
 
 ### correlation of expected rc and real rc
