@@ -10,8 +10,11 @@ root_dir = 'D:/unified_model'
 
 ############ produce testing set and training set ##############################
 ## path of kmer covariate matrix, and gb
+chrom <- '1'
+
 # Yji_in = paste0(root_dir, '/data/k562_kmer_matrix.RData')
-gb_in = paste0(root_dir, '/data/k562_loess_gb_chr22.RData')
+gb_in = paste0(root_dir, '/data/k562_loess_gb_chr',chrom,'.RData')
+
 # ## path of generated training set and testing kmer covariates matrix 
 # tr_out = paste0(root_dir, '/kmer/dataset/k562_train_kmer_matrix.RData')
 # test_out = paste0(root_dir, '/kmer/dataset/k562_test_kmer_matrix.RData')
@@ -19,12 +22,20 @@ gb_in = paste0(root_dir, '/data/k562_loess_gb_chr22.RData')
 # tr_gb_out = paste0(root_dir, '/kmer/gb/k562_train_gb.RData')
 # test_gb_out = paste0(root_dir, '/kmer/gb/k562_test_gb.RData')
 
+tr_gb_out = paste0(root_dir, '/kmer/gb/k562_chr', chrom,'_train_gb.RData')
+test_gb_out = paste0(root_dir, '/kmer/gb/k562_chr', chrom,'_test_gb.RData')
+
+# ## path of kmer-gc combined covariate matrix
+# Yji_in = paste0(root_dir, '/data/k562_kmer_gc_matrix.RData')
+# ## path of generated training set and testing kmer covariates matrix 
+# tr_out = paste0(root_dir, '/kmer/dataset/k562_train_kmer_gc_matrix.RData')
+# test_out = paste0(root_dir, '/kmer/dataset/k562_test_kmer_gc_matrix.RData')
 
 ## path of kmer-gc combined covariate matrix
-Yji_in = paste0(root_dir, '/data/k562_kmer_gc_matrix.RData')
+Yji_in = paste0(root_dir, '/data/k562_chr',chrom,'_kmer_gc_matrix.RData')
 ## path of generated training set and testing kmer covariates matrix 
-tr_out = paste0(root_dir, '/kmer/dataset/k562_train_kmer_gc_matrix.RData')
-test_out = paste0(root_dir, '/kmer/dataset/k562_test_kmer_gc_matrix.RData')
+tr_out = paste0(root_dir, '/kmer/dataset/k562_chr',chrom, '_train_kmer_gc_matrix.RData')
+test_out = paste0(root_dir, '/kmer/dataset/k562_chr',chrom, '_test_kmer_gc_matrix.RData')
 
 ## read in 
 Yji = readRDS(Yji_in)
@@ -67,5 +78,5 @@ saveRDS(tr_set, tr_out)
 saveRDS(test_set, test_out)
 
 ## save gb for training and testing set 
-# saveRDS(tr_gb, tr_gb_out)
-# saveRDS(test_gb, test_gb_out)
+saveRDS(tr_gb, tr_gb_out)
+saveRDS(test_gb, test_gb_out)

@@ -10,8 +10,9 @@ library(MatrixExtra)
 
 root_dir = 'D:/unified_model'
 
-##### demo with chromosome 22 #######
-gb_in = paste0(root_dir, '/data/k562_loess_gb_chr22.RData')
+##### select chromosome #######
+chrom = '22' # change chromosome number 
+gb_in = paste0(root_dir, '/data/k562_loess_gb_chr', chrom, '.RData')
 
 # read in gene bodies 
 gb <- readRDS(gb_in)
@@ -68,10 +69,10 @@ Yji
 print(object.size(Yji), unit = "GB")
 
 ## save kmers and Yji
-kmers_out = paste0(root_dir, '/data/k562_kmers_types.RData')
-kmers_matrix_out =  paste0(root_dir, '/data/k562_kmer_matrix.RData')
+#kmers_out = paste0(root_dir, '/data/k562_kmers_types.RData')
+kmers_matrix_out =  paste0(root_dir, '/data/k562_chr', chrom,'_kmer_matrix.RData')
 
-saveRDS(kmers, kmers_out)
+#saveRDS(kmers, kmers_out)
 saveRDS(Yji, kmers_matrix_out)
 
 
@@ -81,7 +82,7 @@ saveRDS(Yji, kmers_matrix_out)
 ###### some analysis of kmers
 ## path of kmer type and kmer matrix
 kmers_in = paste0(root_dir, '/data/k562_kmers_types.RData')
-kmers_matrix_in =  paste0(root_dir, '/data/k562_kmer_matrix.RData')
+kmers_matrix_in = paste0(root_dir, '/data/k562_chr', chrom,'_kmer_matrix.RData')
 
 ## read in 
 kmers = readRDS(kmers_in)
@@ -102,7 +103,7 @@ p
 
 
 ####### normalize the values of kmers and add G+C ############
-kmers_matrix_in =  paste0(root_dir, '/data/k562_kmer_matrix.RData')
+kmers_matrix_in = paste0(root_dir, '/data/k562_chr', chrom,'_kmer_matrix.RData')
 kmers_matrix = readRDS(kmers_matrix_in)
 
 # add gc content 
@@ -117,7 +118,7 @@ kmers_gc_matrix <- MatrixExtra::cbind2(kmers_matrix, gc)
 # scaled_kmer_gc_matrix[1,]
 
 # save the kmer-gc combined matrix
-kmers_gc_matrix_out <- paste0(root_dir, '/data/k562_kmer_gc_matrix.RData')
+kmers_gc_matrix_out <- paste0(root_dir, '/data/k562_chr',chrom, '_kmer_gc_matrix.RData')
 saveRDS(kmers_gc_matrix, kmers_gc_matrix_out)
 
 

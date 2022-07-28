@@ -10,10 +10,13 @@ root_dir = 'D:/unified_model'
 
 ##########################################################
 ###### read in the training dataset ##########
+chrom = '1'
 ## path of generated training set and testing kmer covariates matrix 
-tr_in = paste0(root_dir, '/kmer/dataset/k562_train_kmer_matrix.RData')
+#tr_in = paste0(root_dir, '/kmer/dataset/k562_train_kmer_matrix.RData')
+tr_in = paste0(root_dir, '/kmer/dataset/k562_chr',chrom, '_train_kmer_gc_matrix.RData')
 ## path of split gb for training and testing dataset
-tr_gb_in = paste0(root_dir, '/kmer/gb/k562_train_gb.RData')
+#tr_gb_in = paste0(root_dir, '/kmer/gb/k562_train_gb.RData')
+tr_gb_in = paste0(root_dir, '/kmer/gb/k562_chr', chrom,'_train_gb.RData')
 
 ## read in kmer matrix data set 
 tr_set = readRDS(tr_in)
@@ -26,7 +29,7 @@ source(paste0(root_dir, '/glm/main_glm_functions.R'))
 ################### produce grid for lambdas ###################################
 # set grid for both lambda1 and lambda2
 lambda1_grid = c(1e-3)
-lambda2_grid = c(0.5, 0.9) #10 for lambda2 
+lambda2_grid = c(0.5) #10 for lambda2 
 
 # produce all combinations of lambda1 and lambda2 
 all_grid = tidyr::expand_grid(lambda1 = lambda1_grid, lambda2 = lambda2_grid)
@@ -34,31 +37,13 @@ all_grid = tidyr::expand_grid(lambda1 = lambda1_grid, lambda2 = lambda2_grid)
 # for each lambda 1 and lambda2 combination, do a glm
 # function that takes lambda1&2, run glm on training data, and give back kappas
 do_glm <- function(grid, Yji, gb, main_path, l_s, t){
-  # ## test
-  # Yji = tr_set
-  # gb = tr_gb
   
-  # calculate lambda
-  gene_rc <- gb %>% 
-    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
-    dplyr::group_by(ensembl_gene_id) %>% 
-    dplyr::summarize(score = sum(score))
-  gene_length <- gb %>% 
-    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
-    dplyr::group_by(ensembl_gene_id) %>% 
-    dplyr::summarize(bin_num = dplyr::n())
-  lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
-  
-  # calculation of SBj
-  SBj <-  gene_rc
-  
-  #calculation of TBj
-  gene_order = gb$ensembl_gene_id %>% 
-    match(., unique(.)) 
-  
-  TBj <- (Yji * gb$score) %>% 
-    Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
-  
+  # calculation of once computeted variables: lambda & SBj & gene_order & TBj
+  once_compute = calculate_onceCompute(gb, Yji)
+  lambda = once_compute$lambda
+  SBj = once_compute$SBj
+  gene_order = once_compute$gene_order
+  TBj = once_compute$TBj
   
   # initialize k, and other items
   k = rep(0.01, ncol(Yji))
@@ -214,11 +199,11 @@ do_glm <- function(grid, Yji, gb, main_path, l_s, t){
              lambda1 = lambda1,
              lambda2 = lambda2)
   #return(out)
-  out_path = paste0(main_path, as.character(lambda1), '_',
+  out_path = paste0(main_path, 'chr', chrom, '_', as.character(lambda1), '_',
                     as.character(lambda2), '.Rdata')
   saveRDS(out, out_path)
 }
 
 
-main_path = paste0(root_dir, '/kmer/kappa_object/')
+main_path = paste0(root_dir, '/kmer/gc_lambda1_lambda2_object/')
 apply(all_grid, 1, do_glm, tr_set, tr_gb, main_path, l_s = 1e-4, t = 1e-3)

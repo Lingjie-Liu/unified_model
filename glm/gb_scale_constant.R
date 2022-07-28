@@ -344,12 +344,13 @@ corrected_bw_out =  paste0(root_dir, '/data/p3/k562_corrected_p3bw.Rdata')
 saveRDS(corrected_bw, corrected_bw_out)
 
 
-# subset only chromosome 22
+# subset only chromosome 22 or else
+chrom <- '1' # change chromosome
 corrected_rc_in = paste0(root_dir, '/data/k562_loess_gb.RData')
 corrected_rc = readRDS(corrected_rc_in)
 
-corrected_rc_22 <- corrected_rc %>% 
-  dplyr::filter(seqnames == '22')
+sub_corrected_rc <- corrected_rc %>% 
+  dplyr::filter(seqnames == chrom)
 
-corrected_rc_22_out = paste0(root_dir, '/data/k562_loess_gb_chr22.RData')
-saveRDS(corrected_rc_22, corrected_rc_22_out)
+sub_corrected_rc_out = paste0(root_dir, '/data/k562_loess_gb_chr', chrom, '.RData')
+saveRDS(sub_corrected_rc, sub_corrected_rc_out)

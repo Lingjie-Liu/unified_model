@@ -1,5 +1,32 @@
 ##### This script is to store the main functions that is needed by GLM #######
 
+## calculate lambda, SBj, gene_order, TBj
+calculate_onceCompute <- function(gb, Yji){
+  gene_rc <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(score = sum(score))
+  gene_length <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(bin_num = dplyr::n())
+  
+  lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
+  
+  SBj <- gene_rc
+  
+  gene_order <- gb$ensembl_gene_id %>% 
+    match(., unique(.)) 
+  
+  TBj <- (Yji *gb$score) %>% 
+    Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
+  
+  return(list(lambda = lambda,
+              SBj = gene_rc,
+              gene_order = gene_order,
+              TBj = TBj))
+}
+
 # calculate e(-k.yji)
 calculate_expNdot <- function(k, Yji){
   power <- Yji %*% k 
@@ -85,7 +112,7 @@ calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1, lambda2, k, n)
   }
   
   p_gradient <- sapply(k, penalty_g, lambda1, lambda2, n) 
-  head(p_gradient) 
+  #head(p_gradient) 
   
   gradient <- colSums(item1 - TBj) - p_gradient
   #head(gradient)

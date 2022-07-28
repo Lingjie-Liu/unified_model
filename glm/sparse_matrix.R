@@ -7,11 +7,12 @@ library(ggpubr)
 root_dir = 'D:/unified_model'
 
 # # path of gb windows grng with all features, read in 
-gb_ft_in = paste0(root_dir, '/data/k562_loess_gb_chr22.RData')
+chrom = '1'
+gb_ft_in = paste0(root_dir, '/data/k562_loess_gb_chr',chrom,'.RData')
 
 # path of kmer covariate matrix
-#Yji_in = paste0(root_dir, '/data/k562_kmer_matrix.RData')
-Yji_in = paste0(root_dir, '/data/k562_kmer_gc_matrix.RData')
+#Yji_in = paste0(root_dir, '/data/k562_kmer_gc_matrix.RData')
+Yji_in = paste0(root_dir, '/data/k562_chr',chrom,'_kmer_gc_matrix.RData')
 
 # read in 
 gb <- readRDS(gb_ft_in) %>% 
@@ -22,36 +23,40 @@ Yji <- readRDS(Yji_in)
 
 # calculate lambda: gb is binned into windows, so length l should be the number 
 # of windows per gb
-gene_rc <- gb %>% 
-  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
-  dplyr::group_by(ensembl_gene_id) %>% 
-  dplyr::summarize(score = sum(score))
-gene_length <- gb %>% 
-  dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
-  dplyr::group_by(ensembl_gene_id) %>% 
-  dplyr::summarize(bin_num = dplyr::n())
-lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
-
-# calculation of SBj
-SBj <-  gene_rc
+calculate_onceCompute <- function(gb, Yji){
+  gene_rc <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(score = sum(score))
+  gene_length <- gb %>% 
+    dplyr::mutate(ensembl_gene_id = as_factor(ensembl_gene_id)) %>% ## maintain order of gene
+    dplyr::group_by(ensembl_gene_id) %>% 
+    dplyr::summarize(bin_num = dplyr::n())
+  
+  lambda <- sum(gene_rc$score)/sum(gene_length$bin_num)
+  
+  SBj <- gene_rc
+  
+  gene_order <- gb$ensembl_gene_id %>% 
+    match(., unique(.)) 
+  
+  TBj <- (Yji *gb$score) %>% 
+    Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
+  
+  return(list(lambda = lambda,
+              SBj = gene_rc,
+              gene_order = gene_order,
+              TBj = TBj))
+}
 
 ## need to make sure the order of the gene_id is the same 
-identical(as.character(SBj$ensembl_gene_id),
-          as.character(unique(gb$ensembl_gene_id )))
-
-tail(gb$score)
-
-#calculation of TBj
-gene_order =gb$ensembl_gene_id %>% 
-  match(., unique(.)) 
-
-TBj <- (Yji *gb$score) %>% 
-  Matrix.utils::aggregate.Matrix(., groupings = gene_order, fun = 'sum')
+# identical(as.character(SBj$ensembl_gene_id),
+#           as.character(unique(gb$ensembl_gene_id )))
 
 # test = Yji *gb$score
 # test[c(3582:4786),1] %>% sum
 # head(TBj)
-gene_order[gene_order == 1] %>% length
+#gene_order[gene_order == 1] %>% length
 
 # initialize k
 #k = rep(0.1, 1024)
@@ -152,10 +157,17 @@ calculate_gradient <- function(lambda, alphaj, VBj, TBj, lambda1, lambda2, k, n)
 ##### time test: 0.27s ####
 # initialize k, lambda1, lambda2
 k = rep(0.01, ncol(Yji))
-lambda1 = 10^-3
+lambda1 = 10^-2
 lambda2 = 0.7
 n = nrow(Yji)                                                                                                                                                                                                                                                                                                                                                                                                                 
 #t1<-Sys.time()
+# calculation of once computeted variables: lambda & SBj & gene_order & TBj
+once_compute = calculate_onceCompute(gb, Yji)
+lambda = once_compute$lambda
+SBj = once_compute$SBj
+gene_order = once_compute$gene_order
+TBj = once_compute$TBj
+# initiate iterating variables
 expNdot <- calculate_expNdot(k, Yji)
 UBj = calculate_UBj(expNdot, gene_order)
 alphaj = calculate_alphaj(lambda, SBj, UBj)
@@ -317,10 +329,40 @@ k %>% summary
 k[1025]
 
 sum(abs(k) > 0.001)
+
+
+#### read in the previous / updated GA k 
+#k_in = paste0(root_dir, '/kmer/gc_kappa_object/0.01_0.4.Rdata')
+k_in = paste0(root_dir, '/kmer/kappa_object/chr1_0.001_0.5.Rdata')
+k = readRDS(k_in)$k
+
+lambda1 = 0.001
+lambda2 = 0.5
+
+##### read in training data set and gr 
+# tr_in = paste0(root_dir, '/kmer/dataset/k562_train_kmer_gc_matrix.RData')
+# tr_gb_in = paste0(root_dir, '/kmer/gb/k562_train_gb.RData')
+tr_in = paste0(root_dir, '/kmer/dataset/k562_chr',chrom, '_train_kmer_gc_matrix.RData')
+tr_gb_in = paste0(root_dir, '/kmer/gb/k562_chr', chrom,'_train_gb.RData')
+
+## read in kmer matrix data set and gb
+Yji = readRDS(tr_in)
+gb = readRDS(tr_gb_in)
+n = nrow(Yji)
+
+# calculate once compute
+once_compute = calculate_onceCompute(gb, Yji)
+lambda = once_compute$lambda
+SBj = once_compute$SBj
+gene_order = once_compute$gene_order
+TBj = once_compute$TBj
+
+sort(abs(k), index.return = T, decreasing = T)$ix[1]
 #### scan penalized log likelihood shape #################
 get_scaned_pl <- function(altered_k, scan_index, scan_kappa, Yji, gene_order,
                           SBj, TBj, UBj, lambda1, lambda2, n){
   scan_kappa[scan_index] <- altered_k
+  
   expNdot <- calculate_expNdot(scan_kappa, Yji)
   UBj = calculate_UBj(expNdot, gene_order)
   p_l  = calculate_likelihood(SBj, scan_kappa, TBj, UBj, lambda1, lambda2, n)
@@ -328,13 +370,11 @@ get_scaned_pl <- function(altered_k, scan_index, scan_kappa, Yji, gene_order,
   return(p_l)
 }
 
-scan_index  <- 1024
+scan_index  <- 1025
 scan_k <- k[scan_index]
-#scan_range <- seq((scan_k-10*scan_k), (scan_k+10*scan_k), scan_k)
-scan_range <- seq(-2, 2, 0.1)
-
-scan_kappa <- vector("numeric", length(k))
+scan_range <- scan_range <- c(seq(-1.5, 0.5, 0.05), scan_k) 
 scan_kappa <- k
+
 scaned_pl = sapply(scan_range, get_scaned_pl, scan_index, scan_kappa, Yji, 
                    gene_order, SBj, TBj, UBj, lambda1, lambda2, n)
 
@@ -342,12 +382,86 @@ scaned_pl = sapply(scan_range, get_scaned_pl, scan_index, scan_kappa, Yji,
 data <- tibble(x = scan_range, y =scaned_pl)
 p <- ggplot(data, aes(x = x, y = y)) + 
   geom_vline(xintercept=scan_k, linetype="dashed", color = "red")+
-  geom_line(size = 1) + theme_bw() +ylab("penalized loglikelihood") +xlab("k(kmer-1024)")
+  geom_line(size = 1) + theme_bw() +ylab("penalized loglikelihood") +
+  xlab(paste0("k(kmer-", as.character(scan_index),")")) +
+  ggtitle(paste0("k = ", as.character(k[scan_index])))
 p
 
-sort(abs(k), index.return = T, decreasing = F)$ix[1]
-k[298]
-k[1024]
+
+
+#### scan original and penalized likelihood 
+get_scaned_ogpg <- function(altered_k, scan_index, scan_kappa, Yji, gene_order, 
+                            lambda, SBj, TBj,lambda1, lambda2, n){
+  scan_kappa[scan_index] <- altered_k
+  expNdot <- calculate_expNdot(scan_kappa, Yji)
+  UBj <- calculate_UBj(expNdot, gene_order)
+  alphaj <- calculate_alphaj(lambda, SBj, UBj)
+  VBj  <- calculate_VBj(expNdot, Yji, gene_order)
+  
+  og_pg <- calculate_original_penalized_gradient(lambda, alphaj, VBj, TBj, 
+                                                 lambda1, lambda2, scan_kappa, n)
+  
+  out <- list(og = og_pg$o_g[scan_index],
+              pg = og_pg$p_g[scan_index])
+  
+  return(out)
+}
+
+#### visualize the original gradient and penalized gradient #####
+scaned_ogpg = sapply(scan_range, get_scaned_ogpg , scan_index, scan_kappa, Yji, 
+                     gene_order, lambda, SBj, TBj, lambda1, lambda2, n)
+
+og = unlist(scaned_ogpg)[c(TRUE, FALSE)]
+pg =  unlist(scaned_ogpg)[c(FALSE, TRUE)]
+
+## check the ranges of og and pg, making them in same scale 
+data <- tibble(x = scan_range, 
+               original = log10(abs(og))*og/abs(og), 
+               penalized = log10(abs(pg)+ 0.001)*pg/abs(pg + 0.001)) %>%  
+  tidyr::pivot_longer(!x, names_to = "type")
+## plot
+my_col <-c("#D6604D", "#4393C3")
+p <- ggplot(data) +
+  geom_point(aes(x= x, y = value, color = type, shape = type), alpha = 0.8, size = 3)+ 
+  scale_color_manual(values = my_col)+
+  geom_vline(xintercept = scan_k, linetype="dashed", color = "grey1")+
+  theme_bw() + 
+  ylab("log10(|gradient|)") + 
+  xlab(paste0("k(kmer-", as.character(scan_index),")")) + 
+  ggtitle(paste0("k = ", as.character(k[scan_index]))) 
+p
+
+
+#### This two functions is to checking the original gradient and penalized gradient
+calculate_original_penalized_gradient <- function(lambda, alphaj, VBj, TBj, lambda1, lambda2, k, n){
+    #head(VBj)
+    #head(alphaj)
+    item1 <- as.vector(lambda * alphaj) * VBj
+    #head(item1)
+    #head(TBj) 
+    
+    ## change gradient due to penalized likelihood
+    penalty_g <- function(nth_k, lambda1, lambda2, n){
+      if(nth_k == 0){
+        p_g = 0 # treat derivative(|k1|, k1=0) = 0
+      }else{
+        p_g = nth_k/abs(nth_k) * lambda1 * lambda2 + lambda1 * (1 - lambda2) * nth_k
+        p_g = p_g * n # take in the number of bins
+      }
+      return(p_g)
+    }
+    
+    p_gradient <- sapply(k, penalty_g, lambda1, lambda2, n) 
+    #head(p_gradient) 
+    
+    gradient <- colSums(item1 - TBj) - p_gradient
+    #head(gradient)
+    out = list(o_g = colSums(item1 - TBj),
+               p_g = p_gradient)
+    
+    return(out)
+}
+
 
 ##################  original GA #####################################
 # while(go_next == T){
